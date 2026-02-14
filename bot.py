@@ -355,31 +355,39 @@ class DutyBot:
         self.load_user_data()
 
     async def setup_scheduler(self):
-        """Настройка автоматических задач - ТОЛЬКО 2 УВЕДОМЛЕНИЯ В НЕДЕЛЮ"""
+        """Настройка автоматических задач - 3 УВЕДОМЛЕНИЯ В НЕДЕЛЮ ВСЕМ ПОЛЬЗОВАТЕЛЯМ"""
         # Создаем асинхронный планировщик
         self.scheduler = AsyncIOScheduler(timezone=MOSCOW_TZ)
 
-        # 1. Уведомление в СРЕДУ в 16:00 - ВСЕМ пользователям о дежурстве в эту субботу
+        # 1. Уведомление в СРЕДУ в 18:00 - ВСЕМ пользователям о дежурстве в эту субботу
         self.scheduler.add_job(
             self.send_wednesday_notification,
-            CronTrigger(day_of_week='wed', hour=16, minute=0, second=0, timezone=MOSCOW_TZ),
+            CronTrigger(day_of_week='wed', hour=18, minute=0, second=0, timezone=MOSCOW_TZ),
             id='wednesday_notification',
             replace_existing=True
         )
 
-        # 2. Напоминание в ПЯТНИЦУ в 18:00 - ТОЛЬКО ДЕЖУРНЫМ (индивидуальное)
+        # 2. Уведомление в ПЯТНИЦУ в 18:00 - ВСЕМ пользователям о завтрашнем дежурстве
         self.scheduler.add_job(
-            self.send_friday_individual_reminder,
+            self.send_friday_notification_all,
             CronTrigger(day_of_week='fri', hour=18, minute=0, second=0, timezone=MOSCOW_TZ),
-            id='friday_individual_reminder',
+            id='friday_notification_all',
+            replace_existing=True
+        )
+
+        # 3. Уведомление в СУББОТУ в 13:00 - ВСЕМ пользователям в день дежурства
+        self.scheduler.add_job(
+            self.send_saturday_notification_all,
+            CronTrigger(day_of_week='sat', hour=13, minute=0, second=0, timezone=MOSCOW_TZ),
+            id='saturday_notification_all',
             replace_existing=True
         )
 
         self.scheduler.start()
-        logger.info("Планировщик задач запущен: среда 16:00 (всем), пятница 18:00 (дежурным)")
+        logger.info("Планировщик задач запущен: среда 18:00 (всем), пятница 18:00 (всем), суббота 13:00 (всем)")
 
     async def send_wednesday_notification(self):
-        """Отправка уведомления в СРЕДУ в 16:00 ВСЕМ пользователям о дежурстве в эту субботу"""
+        """Отправка уведомления в СРЕДУ в 18:00 ВСЕМ пользователям о дежурстве в эту субботу"""
         try:
             today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
 
@@ -400,16 +408,16 @@ class DutyBot:
                     duty_saturday = duty
                     break
 
-            # Если на субботу нет дежурства - отправляем общее сообщение
+            # Формируем сообщение
             if not duty_saturday:
                 logger.info(f"На {saturday.strftime('%d.%m.%Y')} дежурных нет")
 
-                # Отправляем сообщение, что дежурных нет
                 message = (
-                    f"🔔 <b>НАПОМИНАНИЕ О ДЕЖУРСТВЕ</b>\n\n"
-                    f"📅 <b>В эту субботу ({saturday.strftime('%d.%m.%Y')}) дежурных нет</b>\n\n"
-                    f"✅ Можно отдохнуть!\n\n"
-                    f"<i>Следующее уведомление: пятница в 18:00</i>"
+                    f"🔔 <b>НАПОМИНАНИЕ О ДЕЖУРСТВЕ В СУББОТУ</b>\n\n"
+                    f"📅 <b>{saturday.strftime('%d.%m.%Y')}</b>\n\n"
+                    f"⚠️ <b>В эту субботу дежурных нет</b>\n\n"
+                    f"✅ Можно отдыхать!\n\n"
+                    f"<i>Следующее напоминание: пятница в 18:00</i>"
                 )
             else:
                 # Формируем сообщение о дежурстве
@@ -421,74 +429,38 @@ class DutyBot:
                     phones_text = f"{duty_saturday['phones'][0]}"
 
                 message = (
-                    f"🔔 <b>НАПОМИНАНИЕ О ДЕЖУРСТВЕ</b>\n\n"
-                    f"📅 <b>В эту субботу ({saturday.strftime('%d.%m.%Y')}) дежурит:</b>\n"
-                    f"👤 {duty_text}\n"
-                    f"📞 {phones_text}\n\n"
+                    f"🔔 <b>НАПОМИНАНИЕ О ДЕЖУРСТВЕ В СУББОТУ</b>\n\n"
+                    f"📅 <b>Дата:</b> {saturday.strftime('%d.%m.%Y')}\n"
+                    f"👤 <b>Дежурит:</b> {duty_text}\n"
+                    f"📞 <b>Телефоны:</b> {phones_text}\n\n"
                     f"⏰ <b>Время:</b> 6:50 - 8:00\n"
                     f"📍 <b>Место:</b> кабинет 6002, 6 этаж, АДЦ\n\n"
-                    f"📋 <b>Инструкция для дежурных:</b>\n"
-                    f"• Пятница до 17:00 позвонить в приемную: 5600\n"
-                    f"• Суббота прийти к 6:50 в АДЦ\n"
+                    f"📋 <b>Инструкция:</b>\n"
+                    f"• В пятницу до 17:00 позвонить в приемную: 5600\n"
+                    f"• Прийти в субботу к 6:50 в АДЦ\n"
                     f"• Взять ключ на охране от кубов\n"
                     f"• Сфотографировать открытый кабинет\n"
                     f"• Находиться там до 8:00\n\n"
-                    f"📄 <b>Протокол:</b> Не забудьте оформить протокол разногласий\n\n"
-                    f"<i>Следующее напоминание: пятница в 18:00 (только дежурным)</i>"
+                    f"<i>Следующее напоминание: пятница в 18:00</i>"
                 )
 
             # Отправляем ВСЕМ зарегистрированным пользователям
-            sent_count = 0
-            error_count = 0
-            deactivated_users = []
-
-            for user_id, user_info in list(self.user_data.items()):
-                if user_info.get("notifications", True):
-                    try:
-                        await self.bot_instance.send_message(
-                            chat_id=int(user_id),
-                            text=message,
-                            parse_mode=ParseMode.HTML
-                        )
-                        sent_count += 1
-
-                        # Небольшая задержка
-                        await asyncio.sleep(0.05)
-
-                    except Exception as e:
-                        error_count += 1
-                        error_msg = str(e).lower()
-
-                        # Удаляем неактивных пользователей
-                        if any(phrase in error_msg for phrase in ['bot was blocked', 'user not found',
-                                                                  'chat not found', 'kicked', 'deactivated']):
-                            logger.warning(f"Удаляю неактивного пользователя: {user_id}")
-                            deactivated_users.append(user_id)
-
-            # Удаляем неактивных пользователей
-            for user_id in deactivated_users:
-                self.user_data.pop(user_id, None)
-
-            # Сохраняем изменения
-            if deactivated_users:
-                self.save_user_data()
-
-            logger.info(f"Среднее уведомление отправлено: {sent_count} успешно, {error_count} с ошибками, удалено {len(deactivated_users)} пользователей")
+            await self._send_notification_to_all_users(message, "среда")
 
         except Exception as e:
             logger.error(f"Ошибка отправки уведомления в среду: {e}")
 
-    async def send_friday_individual_reminder(self):
-        """Напоминание в ПЯТНИЦУ в 18:00 только дежурным на завтра (субботу)"""
+    async def send_friday_notification_all(self):
+        """Отправка уведомления в ПЯТНИЦУ в 18:00 ВСЕМ пользователям о завтрашнем дежурстве"""
         try:
             today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
 
             # Проверяем, сегодня действительно пятница?
             if today.weekday() != 4:  # 4 = пятница
-                logger.warning(f"send_friday_individual_reminder вызван не в пятницу! День недели: {today.weekday()}")
+                logger.warning(f"send_friday_notification_all вызван не в пятницу! День недели: {today.weekday()}")
                 return
 
-            logger.info(f"Запуск send_friday_individual_reminder в пятницу {today.strftime('%d.%m.%Y %H:%M')}")
+            logger.info(f"Запуск send_friday_notification_all в пятницу {today.strftime('%d.%m.%Y %H:%M')}")
 
             tomorrow = today + timedelta(days=1)  # Завтра - суббота
 
@@ -499,76 +471,177 @@ class DutyBot:
                     duty_tomorrow = duty
                     break
 
+            # Формируем сообщение
             if not duty_tomorrow:
-                logger.info(f"На {tomorrow.strftime('%d.%m.%Y')} дежурных нет, не отправляем напоминание")
-                return
+                logger.info(f"На {tomorrow.strftime('%d.%m.%Y')} дежурных нет")
 
-            # Отправляем индивидуальные напоминания ТОЛЬКО дежурным
-            bot = self.bot_instance
-            if not bot:
-                logger.error("Bot instance not available")
-                return
+                message = (
+                    f"🔔 <b>НАПОМИНАНИЕ О ЗАВТРАШНЕМ ДЕЖУРСТВЕ</b>\n\n"
+                    f"📅 <b>Завтра ({tomorrow.strftime('%d.%m.%Y')}) дежурных нет</b>\n\n"
+                    f"✅ Можете не беспокоиться!\n\n"
+                    f"<i>Следующее напоминание: суббота в 13:00</i>"
+                )
+            else:
+                # Формируем сообщение о дежурстве
+                if duty_tomorrow["is_pair"]:
+                    duty_text = f"{duty_tomorrow['employees'][0]} + {duty_tomorrow['employees'][1]}"
+                    phones_text = f"{duty_tomorrow['phones'][0]} + {duty_tomorrow['phones'][1]}"
+                else:
+                    duty_text = f"{duty_tomorrow['employees'][0]}"
+                    phones_text = f"{duty_tomorrow['phones'][0]}"
 
-            sent_to = []
+                message = (
+                    f"🔔 <b>НАПОМИНАНИЕ О ЗАВТРАШНЕМ ДЕЖУРСТВЕ</b>\n\n"
+                    f"📅 <b>Завтра ({tomorrow.strftime('%d.%m.%Y')}) дежурит:</b>\n"
+                    f"👤 {duty_text}\n"
+                    f"📞 {phones_text}\n\n"
+                    f"⏰ <b>Время:</b> 6:50 - 8:00\n"
+                    f"📍 <b>Место:</b> кабинет 6002, 6 этаж, АДЦ\n\n"
+                    f"⚠️ <b>ВАЖНО! СЕГОДНЯ ДО 19:00:</b>\n"
+                    f"• Дежурным позвонить в приемную: 5600\n"
+                    f"• Сообщить о дежурстве\n"
+                    f"• Попросить оставить ключи на вахте\n\n"
+                    f"📋 <b>План на завтра:</b>\n"
+                    f"• Прийти в АДЦ к 6:50\n"
+                    f"• Взять ключ на охране от кубов\n"
+                    f"• Открыть кабинет 6002\n"
+                    f"• Сфотографировать открытый кабинет\n"
+                    f"• Находиться там до 8:00\n"
+                    f"• Оформить протокол разногласий\n\n"
+                    f"<i>Следующее напоминание: суббота в 13:00</i>"
+                )
 
-            for employee in duty_tomorrow["employees"]:
-                employee_notified = False
-
-                for user_id, user_info in self.user_data.items():
-                    if (user_info.get("notifications", True) and
-                            user_info.get("selected_employee") == employee):
-
-                        # Индивидуальное сообщение для дежурного
-                        individual_message = (
-                            f"🔔 <b>СРОЧНОЕ НАПОМИНАНИЕ ДЛЯ ДЕЖУРНОГО</b>\n\n"
-                            f"📅 <b>Завтра ({tomorrow.strftime('%d.%m.%Y')}) ВАШЕ ДЕЖУРСТВО!</b>\n\n"
-                            f"⏰ <b>ВРЕМЯ:</b> 6:50 - 8:00\n"
-                            f"📍 <b>МЕСТО:</b> кабинет 6002, 6 этаж, АДЦ\n\n"
-                            f"⚠️ <b>ВАЖНО!</b> Сегодня до 19:00 необходимо:\n"
-                            f"• Позвонить в приемную через внутренний телефон: <code>5600</code>\n"
-                            f"• Сообщить о своем дежурстве\n"
-                            f"• Попросить оставить ключи на вахте\n\n"
-                            f"✅ <b>ПЛАН НА ЗАВТРА:</b>\n"
-                            f"• Прийти в АДЦ к 6:50\n"
-                            f"• Взять ключ на охране от кубов\n"
-                            f"• Открыть кабинет 6002\n"
-                            f"• Сфотографировать открытый кабинет\n"
-                            f"• Находиться там до 8:00\n"
-                            f"• После дежурства отписать в группу\n"
-                            f"• Оформить протокол разногласий\n\n"
-                            f"📞 <b>Ваш телефон для связи:</b>\n"
-                            f"{EMPLOYEE_PHONES.get(employee, 'не указан')}\n\n"
-                            f"📅 <b>Другие дежурные:</b>\n"
-                        )
-
-                        # Добавляем информацию о других дежурных
-                        for other_employee in duty_tomorrow["employees"]:
-                            if other_employee != employee:
-                                individual_message += f"• {other_employee}: {EMPLOYEE_PHONES.get(other_employee, 'не указан')}\n"
-
-                        try:
-                            await bot.send_message(
-                                chat_id=int(user_id),
-                                text=individual_message,
-                                parse_mode=ParseMode.HTML
-                            )
-                            sent_to.append(employee)
-                            employee_notified = True
-                            logger.info(f"Отправлено пятничное напоминание {employee}")
-
-                            # Небольшая задержка
-                            await asyncio.sleep(0.05)
-
-                        except Exception as e:
-                            logger.error(f"Ошибка отправки индивидуального напоминания {employee}: {e}")
-
-                if not employee_notified:
-                    logger.warning(f"Не найден пользователь для сотрудника {employee}")
-
-            logger.info(f"Пятничное напоминание отправлено {len(sent_to)} дежурным: {', '.join(sent_to)}")
+            # Отправляем ВСЕМ зарегистрированным пользователям
+            await self._send_notification_to_all_users(message, "пятница")
 
         except Exception as e:
-            logger.error(f"Ошибка отправки пятничного напоминания: {e}")
+            logger.error(f"Ошибка отправки уведомления в пятницу: {e}")
+
+    async def send_saturday_notification_all(self):
+        """Отправка уведомления в СУББОТУ в 13:00 ВСЕМ пользователям в день дежурства"""
+        try:
+            today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
+
+            # Проверяем, сегодня действительно суббота?
+            if today.weekday() != 5:  # 5 = суббота
+                logger.warning(f"send_saturday_notification_all вызван не в субботу! День недели: {today.weekday()}")
+                return
+
+            logger.info(f"Запуск send_saturday_notification_all в субботу {today.strftime('%d.%m.%Y %H:%M')}")
+
+            today_str = today.strftime("%d.%m.%Yг.")
+
+            # Ищем дежурных на сегодня
+            duty_today = None
+            for date_str, duty in self.schedule_generator.schedule.items():
+                if date_str == today_str:
+                    duty_today = duty
+                    break
+
+            # Формируем сообщение
+            if not duty_today:
+                logger.info(f"На {today.strftime('%d.%m.%Y')} дежурных нет")
+
+                message = (
+                    f"🔔 <b>ИНФОРМАЦИЯ О ДЕЖУРСТВЕ</b>\n\n"
+                    f"📅 <b>Сегодня ({today.strftime('%d.%m.%Y')}) дежурных нет</b>\n\n"
+                    f"✅ Всем хороших выходных!\n\n"
+                    f"<i>Следующее напоминание: среда в 18:00</i>"
+                )
+            else:
+                # Формируем сообщение о дежурстве
+                if duty_today["is_pair"]:
+                    duty_text = f"{duty_today['employees'][0]} + {duty_today['employees'][1]}"
+                    phones_text = f"{duty_today['phones'][0]} + {duty_today['phones'][1]}"
+                else:
+                    duty_text = f"{duty_today['employees'][0]}"
+                    phones_text = f"{duty_today['phones'][0]}"
+
+                # Проверяем, прошло ли уже время дежурства (после 8:00)
+                current_hour = today.hour
+                current_minute = today.minute
+                is_after_duty = current_hour > 8 or (current_hour == 8 and current_minute > 0)
+
+                if is_after_duty:
+                    # После 8:00 - спрашиваем, как прошло дежурство
+                    message = (
+                        f"🔔 <b>ИТОГИ ДЕЖУРСТВА</b>\n\n"
+                        f"📅 <b>Сегодня ({today.strftime('%d.%m.%Y')}) дежурили:</b>\n"
+                        f"👤 {duty_text}\n"
+                        f"📞 {phones_text}\n\n"
+                        f"✅ <b>Дежурство завершилось в 8:00</b>\n\n"
+                        f"📋 <b>Напоминание дежурным:</b>\n"
+                        f"• Не забудьте оформить протокол разногласий\n"
+                        f"• Протокол оставить у Е.С. Денисовой\n\n"
+                        f"<i>Следующее напоминание: среда в 18:00</i>"
+                    )
+                else:
+                    # До 8:00 - дежурство еще идет
+                    time_remaining = ""
+                    if current_hour < 6 or (current_hour == 6 and current_minute < 50):
+                        time_remaining = "⏰ Дежурство начнется в 6:50"
+                    elif current_hour < 8:
+                        time_remaining = f"⏰ До окончания дежурства осталось: {7 - current_hour} ч {60 - current_minute} мин"
+                    
+                    message = (
+                        f"🔔 <b>ДЕЖУРСТВО СЕГОДНЯ</b>\n\n"
+                        f"📅 <b>Сегодня ({today.strftime('%d.%m.%Y')}) дежурят:</b>\n"
+                        f"👤 {duty_text}\n"
+                        f"📞 {phones_text}\n\n"
+                        f"⏰ <b>Текущее время:</b> {today.strftime('%H:%M')}\n"
+                        f"{time_remaining}\n\n"
+                        f"📍 <b>Место:</b> кабинет 6002, 6 этаж, АДЦ\n\n"
+                        f"📋 <b>Напоминание:</b>\n"
+                        f"• Дежурные должны находиться в кабинете\n"
+                        f"• Сделать фото открытого кабинета\n"
+                        f"• После дежурства оформить протокол\n\n"
+                        f"<i>Следующее напоминание: среда в 18:00</i>"
+                    )
+
+            # Отправляем ВСЕМ зарегистрированным пользователям
+            await self._send_notification_to_all_users(message, "суббота")
+
+        except Exception as e:
+            logger.error(f"Ошибка отправки уведомления в субботу: {e}")
+
+    async def _send_notification_to_all_users(self, message: str, notification_type: str):
+        """Вспомогательный метод для отправки уведомлений всем пользователям"""
+        sent_count = 0
+        error_count = 0
+        deactivated_users = []
+
+        for user_id, user_info in list(self.user_data.items()):
+            if user_info.get("notifications", True):
+                try:
+                    await self.bot_instance.send_message(
+                        chat_id=int(user_id),
+                        text=message,
+                        parse_mode=ParseMode.HTML
+                    )
+                    sent_count += 1
+
+                    # Небольшая задержка
+                    await asyncio.sleep(0.05)
+
+                except Exception as e:
+                    error_count += 1
+                    error_msg = str(e).lower()
+
+                    # Удаляем неактивных пользователей
+                    if any(phrase in error_msg for phrase in ['bot was blocked', 'user not found',
+                                                              'chat not found', 'kicked', 'deactivated']):
+                        logger.warning(f"Удаляю неактивного пользователя: {user_id}")
+                        deactivated_users.append(user_id)
+
+        # Удаляем неактивных пользователей
+        for user_id in deactivated_users:
+            self.user_data.pop(user_id, None)
+
+        # Сохраняем изменения
+        if deactivated_users:
+            self.save_user_data()
+
+        logger.info(f"Уведомление ({notification_type}) отправлено: {sent_count} успешно, {error_count} с ошибками, удалено {len(deactivated_users)} пользователей")
 
     def load_user_data(self):
         """Загрузка данных пользователей"""
@@ -1299,9 +1372,10 @@ class DutyBot:
             text += f"<b>Ближайшая суббота ({next_saturday.strftime('%d.%m.%Y')}):</b>\n"
             text += "• Дежурных нет\n"
 
-        text += f"\n<b>Расписание уведомлений:</b>\n"
-        text += "• Среда 16:00 - всем о дежурстве в субботу\n"
-        text += "• Пятница 18:00 - только дежурным\n"
+        text += f"\n<b>Расписание уведомлений (ВСЕМ):</b>\n"
+        text += "• Среда 18:00 - уведомление о дежурстве в субботу\n"
+        text += "• Пятница 18:00 - напоминание о завтрашнем дежурстве\n"
+        text += "• Суббота 13:00 - напоминание в день дежурства\n"
 
         keyboard = [
             [InlineKeyboardButton("🔙 Назад в админку", callback_data="admin_panel")],
@@ -1886,16 +1960,28 @@ class DutyBot:
         await update.message.reply_text("✅ Тестовое среднее уведомление отправлено!")
 
     async def send_test_friday(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Команда для тестирования отправки пятничного напоминания"""
+        """Команда для тестирования отправки пятничного уведомления"""
         user_id = str(update.effective_user.id)
 
         if not self.is_admin(user_id):
             await update.message.reply_text("❌ Только администратор может использовать эту команду.")
             return
 
-        await update.message.reply_text("🔄 Отправляю тестовое пятничное напоминание дежурным...")
-        await self.send_friday_individual_reminder()
-        await update.message.reply_text("✅ Тестовое пятничное напоминание отправлено!")
+        await update.message.reply_text("🔄 Отправляю тестовое пятничное уведомление всем пользователям...")
+        await self.send_friday_notification_all()
+        await update.message.reply_text("✅ Тестовое пятничное уведомление отправлено!")
+
+    async def send_test_saturday(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Команда для тестирования отправки субботнего уведомления"""
+        user_id = str(update.effective_user.id)
+
+        if not self.is_admin(user_id):
+            await update.message.reply_text("❌ Только администратор может использовать эту команду.")
+            return
+
+        await update.message.reply_text("🔄 Отправляю тестовое субботнее уведомление всем пользователям...")
+        await self.send_saturday_notification_all()
+        await update.message.reply_text("✅ Тестовое субботнее уведомление отправлено!")
 
     async def test_notification_for_user(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Тестирование уведомления для конкретного пользователя"""
@@ -1922,9 +2008,10 @@ class DutyBot:
             f"📅 <b>Это тестовое сообщение от администратора</b>\n\n"
             f"✅ Получено: {datetime.now(MOSCOW_TZ).strftime('%d.%m.%Y %H:%M')}\n\n"
             f"<i>Если вы видите это сообщение, значит система уведомлений работает корректно.</i>\n\n"
-            f"<b>Режим уведомлений:</b>\n"
-            f"• Среда 16:00 - всем о дежурстве в субботу\n"
-            f"• Пятница 18:00 - только дежурным"
+            f"<b>Расписание уведомлений (ВСЕМ):</b>\n"
+            f"• Среда 18:00 - о дежурстве в субботу\n"
+            f"• Пятница 18:00 - о завтрашнем дежурстве\n"
+            f"• Суббота 13:00 - в день дежурства"
         )
 
         try:
@@ -1938,7 +2025,7 @@ class DutyBot:
             await update.message.reply_text(f"❌ Ошибка отправки: {str(e)}")
 
     async def send_notification_now(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Немедленная отправка среднего уведомления"""
+        """Немедленная отправка уведомления (по умолчанию среднего)"""
         await self.send_test_wednesday(update, context)
 
     def run(self):
@@ -1953,6 +2040,7 @@ class DutyBot:
         self.application.add_handler(CommandHandler("admin", self.admin_login))
         self.application.add_handler(CommandHandler("test_wednesday", self.send_test_wednesday))
         self.application.add_handler(CommandHandler("test_friday", self.send_test_friday))
+        self.application.add_handler(CommandHandler("test_saturday", self.send_test_saturday))
         self.application.add_handler(CommandHandler("test_user", self.test_notification_for_user))
         self.application.add_handler(CommandHandler("send_now", self.send_notification_now))
         self.application.add_handler(CallbackQueryHandler(self.button_handler))
@@ -1960,7 +2048,7 @@ class DutyBot:
         self.application.add_handler(MessageHandler(filters.Document.ALL, self.message_handler))
 
         logger.info("Бот запущен...")
-        logger.info("Режим уведомлений: среда 16:00 (всем), пятница 18:00 (дежурным)")
+        logger.info("Режим уведомлений: среда 18:00 (всем), пятница 18:00 (всем), суббота 13:00 (всем)")
 
         # Запускаем планировщик
         loop = asyncio.get_event_loop()
@@ -1971,7 +2059,7 @@ class DutyBot:
             drop_pending_updates=True
         )
 
-2
+
 if __name__ == "__main__":
     BOT_TOKEN = "8485938284:AAHl6RjZbecjayHhSrImN0uwmQ3LlajliwQ"
     bot = DutyBot(BOT_TOKEN)
