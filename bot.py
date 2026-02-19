@@ -30,6 +30,9 @@ ADMIN_CREDENTIALS = {
     "password": "admin123"
 }
 
+# СПЕЦИАЛЬНЫЙ АДМИН - ТОЛЬКО ЭТОТ ПОЛЬЗОВАТЕЛЬ МОЖЕТ ЗАПУСКАТЬ ДИАГНОСТИЧЕСКИЕ КОМАНДЫ
+SUPER_ADMIN_USERNAME = "@Tamerlantcik"  # Специальный админ для диагностики
+
 # Соответствие Telegram username сотрудникам
 TELEGRAM_TO_EMPLOYEE = {
     "@lihodko": "Лиходько А.С.",
@@ -375,16 +378,16 @@ class DutyBot:
             replace_existing=True
         )
 
-        # 3. Уведомление в СУББОТУ в 13:00 - ВСЕМ пользователям в день дежурства
+        # 3. Уведомление в СУББОТУ в 10:00 - ВСЕМ пользователям в день дежурства (ИЗМЕНЕНО С 13 НА 10)
         self.scheduler.add_job(
             self.send_saturday_notification_all,
-            CronTrigger(day_of_week='sat', hour=13, minute=0, second=0, timezone=MOSCOW_TZ),
+            CronTrigger(day_of_week='sat', hour=10, minute=0, second=0, timezone=MOSCOW_TZ),
             id='saturday_notification_all',
             replace_existing=True
         )
 
         self.scheduler.start()
-        logger.info("Планировщик задач запущен: среда 18:00 (всем), пятница 18:00 (всем), суббота 13:00 (всем)")
+        logger.info("Планировщик задач запущен: среда 18:00 (всем), пятница 18:00 (всем), суббота 10:00 (всем)")
 
     async def send_wednesday_notification(self):
         """Отправка уведомления в СРЕДУ в 18:00 ВСЕМ пользователям о дежурстве в эту субботу"""
@@ -479,7 +482,7 @@ class DutyBot:
                     f"🔔 <b>НАПОМИНАНИЕ О ЗАВТРАШНЕМ ДЕЖУРСТВЕ</b>\n\n"
                     f"📅 <b>Завтра ({tomorrow.strftime('%d.%m.%Y')}) дежурных нет</b>\n\n"
                     f"✅ Можете не беспокоиться!\n\n"
-                    f"<i>Следующее напоминание: суббота в 13:00</i>"
+                    f"<i>Следующее напоминание: суббота в 10:00</i>"  # ИЗМЕНЕНО
                 )
             else:
                 # Формируем сообщение о дежурстве
@@ -508,7 +511,7 @@ class DutyBot:
                     f"• Сфотографировать открытый кабинет\n"
                     f"• Находиться там до 8:00\n"
                     f"• Оформить протокол разногласий\n\n"
-                    f"<i>Следующее напоминание: суббота в 13:00</i>"
+                    f"<i>Следующее напоминание: суббота в 10:00</i>"  # ИЗМЕНЕНО
                 )
 
             # Отправляем ВСЕМ зарегистрированным пользователям
@@ -518,7 +521,7 @@ class DutyBot:
             logger.error(f"Ошибка отправки уведомления в пятницу: {e}")
 
     async def send_saturday_notification_all(self):
-        """Отправка уведомления в СУББОТУ в 13:00 ВСЕМ пользователям в день дежурства"""
+        """Отправка уведомления в СУББОТУ в 10:00 ВСЕМ пользователям в день дежурства (ИЗМЕНЕНО С 13 НА 10)"""
         try:
             today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
 
@@ -605,43 +608,67 @@ class DutyBot:
             logger.error(f"Ошибка отправки уведомления в субботу: {e}")
 
     async def _send_notification_to_all_users(self, message: str, notification_type: str):
-        """Вспомогательный метод для отправки уведомлений всем пользователям"""
+        """ИСПРАВЛЕНО: Отправка уведомлений ВСЕМ пользователям с проверкой ID"""
         sent_count = 0
         error_count = 0
         deactivated_users = []
-
+        
+        # Принудительно загружаем свежие данные
+        self.load_user_data()
+        
+        logger.info(f"Отправка уведомления {notification_type} - всего пользователей: {len(self.user_data)}")
+        
         for user_id, user_info in list(self.user_data.items()):
-            if user_info.get("notifications", True):
-                try:
-                    await self.bot_instance.send_message(
-                        chat_id=int(user_id),
-                        text=message,
-                        parse_mode=ParseMode.HTML
-                    )
-                    sent_count += 1
-
-                    # Небольшая задержка
-                    await asyncio.sleep(0.05)
-
-                except Exception as e:
-                    error_count += 1
-                    error_msg = str(e).lower()
-
-                    # Удаляем неактивных пользователей
-                    if any(phrase in error_msg for phrase in ['bot was blocked', 'user not found',
-                                                              'chat not found', 'kicked', 'deactivated']):
-                        logger.warning(f"Удаляю неактивного пользователя: {user_id}")
-                        deactivated_users.append(user_id)
-
-        # Удаляем неактивных пользователей
+            try:
+                # Проверяем, что user_id можно преобразовать в int
+                chat_id = int(user_id)
+                
+                await self.bot_instance.send_message(
+                    chat_id=chat_id,
+                    text=message,
+                    parse_mode=ParseMode.HTML
+                )
+                sent_count += 1
+                logger.debug(f"✓ Отправлено пользователю {user_id}")
+                
+                # Небольшая задержка чтобы не флудить
+                await asyncio.sleep(0.1)
+                
+            except ValueError:
+                logger.error(f"✗ Некорректный ID пользователя: {user_id}")
+                error_count += 1
+                deactivated_users.append(user_id)
+                
+            except Exception as e:
+                error_count += 1
+                error_msg = str(e).lower()
+                logger.error(f"✗ Ошибка отправки пользователю {user_id}: {error_msg[:100]}")
+                
+                # Удаляем неактивных пользователей
+                if any(phrase in error_msg for phrase in [
+                    'bot was blocked', 'user not found', 'chat not found', 
+                    'kicked', 'deactivated', 'forbidden', 'can\'t initiate'
+                ]):
+                    logger.warning(f"Удаляю неактивного пользователя: {user_id}")
+                    deactivated_users.append(user_id)
+        
+        # Удаляем неактивных
         for user_id in deactivated_users:
             self.user_data.pop(user_id, None)
-
-        # Сохраняем изменения
+        
         if deactivated_users:
             self.save_user_data()
-
-        logger.info(f"Уведомление ({notification_type}) отправлено: {sent_count} успешно, {error_count} с ошибками, удалено {len(deactivated_users)} пользователей")
+        
+        # Подробный лог
+        logger.info(f"=== ИТОГИ УВЕДОМЛЕНИЯ {notification_type.upper()} ===")
+        logger.info(f"Всего в базе: {len(self.user_data) + len(deactivated_users)}")
+        logger.info(f"Отправлено успешно: {sent_count}")
+        logger.info(f"Ошибок: {error_count}")
+        logger.info(f"Удалено неактивных: {len(deactivated_users)}")
+        
+        # Если никому не отправилось - это проблема!
+        if sent_count == 0 and len(self.user_data) > 0:
+            logger.error("⚠️ КРИТИЧЕСКАЯ ПРОБЛЕМА: НЕ УДАЛОСЬ ОТПРАВИТЬ НИ ОДНОГО УВЕДОМЛЕНИЯ!")
 
     def load_user_data(self):
         """Загрузка данных пользователей"""
@@ -666,6 +693,14 @@ class DutyBot:
     def is_admin(self, user_id: str) -> bool:
         """Проверка, является ли пользователь админом"""
         return self.user_data.get(user_id, {}).get("is_admin", False)
+    
+    def is_super_admin(self, username: str) -> bool:
+        """Проверка, является ли пользователь супер-админом (@Tamerlantcik)"""
+        if not username:
+            return False
+        if not username.startswith('@'):
+            username = '@' + username
+        return username.lower() == SUPER_ADMIN_USERNAME.lower()
 
     def get_employee_by_username(self, username: str) -> Optional[str]:
         """Найти сотрудника по Telegram username"""
@@ -775,7 +810,7 @@ class DutyBot:
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "telegram_name": f"{user.first_name} {user.last_name or ''}".strip(),
-                "notifications": True,
+                "notifications": True,  # По умолчанию ВКЛЮЧЕНЫ!
                 "selected_employee": None,
                 "registered_at": datetime.now().isoformat(),
                 "last_active": datetime.now().isoformat(),
@@ -800,7 +835,8 @@ class DutyBot:
                 f"<b>ДОБРО ПОЖАЛОВАТЬ, {user.first_name}!</b>\n\n"
                 f"👤 <b>Ваш профиль:</b>\n"
                 f"• Сотрудник: {employee_name}\n"
-                f"• Телефон: {EMPLOYEE_PHONES.get(employee_name, 'не указан')}\n\n"
+                f"• Телефон: {EMPLOYEE_PHONES.get(employee_name, 'не указан')}\n"
+                f"• Уведомления: {'✅ Включены' if user_info.get('notifications', True) else '❌ Отключены'}\n\n"
                 "<i>Выберите действие:</i>"
             )
         else:
@@ -893,6 +929,286 @@ class DutyBot:
                 parse_mode=ParseMode.HTML
             )
 
+    # ============= НОВЫЕ ДИАГНОСТИЧЕСКИЕ КОМАНДЫ ДЛЯ @Tamerlantcik =============
+    
+    async def check_users_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Подробная проверка статуса всех пользователей - ТОЛЬКО ДЛЯ @Tamerlantcik"""
+        user = update.effective_user
+        
+        # Проверяем, что это @Tamerlantcik
+        if not self.is_super_admin(user.username):
+            await update.message.reply_text(
+                "❌ <b>ДОСТУП ЗАПРЕЩЕН</b>\n\n"
+                "Эта команда доступна только @Tamerlantcik",
+                parse_mode=ParseMode.HTML
+            )
+            return
+        
+        # Принудительно загружаем свежие данные
+        self.load_user_data()
+        
+        text = "📊 <b>СТАТУС ПОЛЬЗОВАТЕЛЕЙ</b>\n\n"
+        
+        # Счетчики
+        total = len(self.user_data)
+        with_employee = 0
+        notifications_on = 0
+        notifications_off = 0
+        
+        for uid, info in self.user_data.items():
+            name = info.get('telegram_name', 'Неизвестно')
+            username = info.get('username', 'Нет username')
+            employee = info.get('selected_employee', None)
+            notifications = info.get('notifications', True)
+            
+            # Подсчет статистики - ИСПРАВЛЕНО
+            if employee and employee != 'None' and employee != '❌ НЕ ВЫБРАН':
+                with_employee += 1
+            if notifications:
+                notifications_on += 1
+            else:
+                notifications_off += 1
+            
+            # Статус уведомлений
+            notif_status = "✅ ВКЛ" if notifications else "❌ ВЫКЛ"
+            employee_display = employee if employee else "❌ НЕ ВЫБРАН"
+            
+            text += f"<b>{name}</b>\n"
+            text += f"📱 @{username}\n"
+            text += f"🆔 {uid}\n"
+            text += f"👤 {employee_display}\n"
+            text += f"🔔 {notif_status}\n"
+            text += f"📅 Последний вход: {info.get('last_active', 'Неизвестно')[:16]}\n\n"
+        
+        text += f"<b>ИТОГО:</b> {total} пользователей\n"
+        text += f"👤 С выбором сотрудника: {with_employee}\n"
+        text += f"🔔 Уведомления включены: {notifications_on}\n"
+        text += f"🔕 Уведомления выключены: {notifications_off}"
+        
+        # Отправляем
+        await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+    
+    async def enable_notifications_all(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Включить уведомления для всех пользователей - ТОЛЬКО ДЛЯ @Tamerlantcik"""
+        user = update.effective_user
+        
+        # Проверяем, что это @Tamerlantcik
+        if not self.is_super_admin(user.username):
+            await update.message.reply_text(
+                "❌ <b>ДОСТУП ЗАПРЕЩЕН</b>\n\n"
+                "Эта команда доступна только @Tamerlantcik",
+                parse_mode=ParseMode.HTML
+            )
+            return
+        
+        self.load_user_data()
+        
+        enabled_count = 0
+        for uid, info in self.user_data.items():
+            if not info.get('notifications', True):
+                self.user_data[uid]['notifications'] = True
+                enabled_count += 1
+        
+        self.save_user_data()
+        
+        await update.message.reply_text(
+            f"✅ Уведомления включены для {enabled_count} пользователей\n"
+            f"📊 Всего пользователей: {len(self.user_data)}",
+            parse_mode=ParseMode.HTML
+        )
+    
+    async def test_send_to_user(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Тест отправки конкретному пользователю - ТОЛЬКО ДЛЯ @Tamerlantcik"""
+        user = update.effective_user
+        
+        # Проверяем, что это @Tamerlantcik
+        if not self.is_super_admin(user.username):
+            await update.message.reply_text(
+                "❌ <b>ДОСТУП ЗАПРЕЩЕН</b>\n\n"
+                "Эта команда доступна только @Tamerlantcik",
+                parse_mode=ParseMode.HTML
+            )
+            return
+        
+        args = context.args
+        if len(args) < 1:
+            await update.message.reply_text(
+                "❌ Укажите user_id или username\n"
+                "Пример: /test_send 123456789\n"
+                "Или: /test_send @username"
+            )
+            return
+        
+        target = args[0]
+        
+        # Пробуем найти пользователя
+        target_id = None
+        target_name = target
+        
+        if target.startswith('@'):
+            # Поиск по username
+            username = target[1:].lower()
+            for uid, info in self.user_data.items():
+                if info.get('username', '').lower() == username:
+                    target_id = uid
+                    target_name = info.get('telegram_name', target)
+                    break
+            if not target_id:
+                await update.message.reply_text(f"❌ Пользователь {target} не найден в базе")
+                return
+        else:
+            # Прямой ID
+            target_id = target
+        
+        # Тестовое сообщение
+        test_msg = (
+            f"🔔 <b>ТЕСТОВОЕ УВЕДОМЛЕНИЕ</b>\n\n"
+            f"👤 Получатель: {target_name}\n"
+            f"🆔 ID: {target_id}\n"
+            f"📅 Время: {datetime.now(MOSCOW_TZ).strftime('%d.%m.%Y %H:%M:%S')}\n\n"
+            f"✅ Если вы видите это сообщение, значит:\n"
+            f"   • Бот может отправлять вам сообщения\n"
+            f"   • Вы не блокировали бота\n"
+            f"   • Уведомления будут приходить по расписанию\n\n"
+            f"📅 Расписание уведомлений:\n"
+            f"• Среда 18:00 - о дежурстве в субботу\n"
+            f"• Пятница 18:00 - о завтрашнем дежурстве\n"
+            f"• Суббота 10:00 - в день дежурства"  # ИЗМЕНЕНО
+        )
+        
+        try:
+            await self.bot_instance.send_message(
+                chat_id=int(target_id),
+                text=test_msg,
+                parse_mode=ParseMode.HTML
+            )
+            await update.message.reply_text(f"✅ Тестовое сообщение отправлено {target_name}")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Ошибка отправки: {str(e)[:200]}")
+    
+    async def check_time(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Проверка времени на сервере - ТОЛЬКО ДЛЯ @Tamerlantcik"""
+        user = update.effective_user
+        
+        # Проверяем, что это @Tamerlantcik
+        if not self.is_super_admin(user.username):
+            await update.message.reply_text(
+                "❌ <b>ДОСТУП ЗАПРЕЩЕН</b>\n\n"
+                "Эта команда доступна только @Tamerlantcik",
+                parse_mode=ParseMode.HTML
+            )
+            return
+        
+        now = datetime.now(MOSCOW_TZ)
+        
+        # Дни недели на русском
+        weekdays = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
+        weekday_ru = weekdays[now.weekday()]
+        
+        # Следующее уведомление
+        next_notification = ""
+        if now.weekday() == 1 and now.hour < 18:  # Вторник до 18
+            next_notification = "Среда 18:00 (через 1 день)"
+        elif now.weekday() == 2 and now.hour < 18:  # Среда до 18
+            next_notification = "Среда 18:00 (сегодня)"
+        elif now.weekday() == 3:  # Четверг
+            next_notification = "Пятница 18:00 (через 1 день)"
+        elif now.weekday() == 4 and now.hour < 18:  # Пятница до 18
+            next_notification = "Пятница 18:00 (сегодня)"
+        elif now.weekday() == 5 and now.hour < 10:  # Суббота до 10 (ИЗМЕНЕНО)
+            next_notification = "Суббота 10:00 (сегодня)"
+        elif now.weekday() == 6:  # Воскресенье
+            next_notification = "Среда 18:00 (через 3 дня)"
+        else:
+            next_notification = "Среда 18:00"
+        
+        await update.message.reply_text(
+            f"🕐 <b>ИНФОРМАЦИЯ О ВРЕМЕНИ</b>\n\n"
+            f"📅 Дата: {now.strftime('%d.%m.%Y')}\n"
+            f"⏰ Время: {now.strftime('%H:%M:%S')}\n"
+            f"📆 День недели: {weekday_ru}\n"
+            f"🌍 Часовой пояс: Москва (UTC+3)\n\n"
+            f"🔄 <b>Следующее уведомление:</b> {next_notification}\n\n"
+            f"📋 <b>Расписание:</b>\n"
+            f"• Среда 18:00 - всем\n"
+            f"• Пятница 18:00 - всем\n"
+            f"• Суббота 10:00 - всем",  # ИЗМЕНЕНО
+            parse_mode=ParseMode.HTML
+        )
+    
+    async def fix_all_users(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """ИСПРАВИТЬ: Включить уведомления и проверить всех пользователей"""
+        user = update.effective_user
+        
+        # Проверяем, что это @Tamerlantcik
+        if not self.is_super_admin(user.username):
+            await update.message.reply_text(
+                "❌ <b>ДОСТУП ЗАПРЕЩЕН</b>\n\n"
+                "Эта команда доступна только @Tamerlantcik",
+                parse_mode=ParseMode.HTML
+            )
+            return
+        
+        self.load_user_data()
+        
+        fixed_count = 0
+        for uid, info in self.user_data.items():
+            changes = []
+            
+            # Включаем уведомления
+            if not info.get('notifications', True):
+                info['notifications'] = True
+                changes.append("включены уведомления")
+            
+            # Проверяем наличие всех полей
+            if 'telegram_name' not in info:
+                info['telegram_name'] = info.get('first_name', 'Пользователь')
+                changes.append("добавлено имя")
+            
+            if changes:
+                fixed_count += 1
+                logger.info(f"Исправлен пользователь {uid}: {', '.join(changes)}")
+        
+        self.save_user_data()
+        
+        # Теперь отправляем тестовое уведомление всем
+        test_msg = (
+            f"🔔 <b>ТЕСТОВОЕ УВЕДОМЛЕНИЕ ОТ АДМИНИСТРАТОРА</b>\n\n"
+            f"✅ Ваши уведомления были включены!\n\n"
+            f"📅 Вы будете получать напоминания:\n"
+            f"• В среду в 18:00 - о дежурстве в субботу\n"
+            f"• В пятницу в 18:00 - о завтрашнем дежурстве\n"
+            f"• В субботу в 10:00 - в день дежурства\n\n"  # ИЗМЕНЕНО
+            f"📋 Используйте /start для просмотра меню"
+        )
+        
+        sent_count = 0
+        error_count = 0
+        
+        for uid in self.user_data.keys():
+            try:
+                await self.bot_instance.send_message(
+                    chat_id=int(uid),
+                    text=test_msg,
+                    parse_mode=ParseMode.HTML
+                )
+                sent_count += 1
+                await asyncio.sleep(0.1)
+            except Exception as e:
+                error_count += 1
+                logger.error(f"Ошибка отправки теста пользователю {uid}: {e}")
+        
+        await update.message.reply_text(
+            f"✅ <b>ИСПРАВЛЕНИЕ ЗАВЕРШЕНО</b>\n\n"
+            f"📊 Исправлено пользователей: {fixed_count}\n"
+            f"📤 Отправлено тестовых уведомлений: {sent_count}\n"
+            f"❌ Ошибок отправки: {error_count}\n\n"
+            f"🔔 Теперь все пользователи будут получать уведомления!",
+            parse_mode=ParseMode.HTML
+        )
+
+    # ============= КОНЕЦ НОВЫХ ДИАГНОСТИЧЕСКИХ КОМАНД =============
+
     async def button_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик нажатий кнопок"""
         query = update.callback_query
@@ -938,6 +1254,7 @@ class DutyBot:
             "admin_delete_protocol": self.admin_delete_protocol,
             "admin_check_protocol": self.admin_check_protocol,
             "admin_pin_protocol": self.admin_pin_protocol,
+            # "admin_send_protocol" - УДАЛЕНО, так как нет обработчика
         }
 
         if data.startswith("emp_"):
@@ -1167,7 +1484,8 @@ class DutyBot:
                 "<b>✅ РЕГИСТРАЦИЯ УСПЕШНА</b>\n\n"
                 f"Ваш аккаунт привязан к:\n"
                 f"<b>{employee_name}</b>\n\n"
-                f"📞 Телефон: {EMPLOYEE_PHONES.get(employee_name, 'не указан')}\n\n"
+                f"📞 Телефон: {EMPLOYEE_PHONES.get(employee_name, 'не указан')}\n"
+                f"🔔 Уведомления: {'✅ Включены' if self.user_data[user_id].get('notifications', True) else '❌ Отключены'}\n\n"
                 "<i>Теперь вы можете пользоваться всеми функциями бота.</i>\n\n"
                 "Выберите действие:"
             )
@@ -1375,7 +1693,7 @@ class DutyBot:
         text += f"\n<b>Расписание уведомлений (ВСЕМ):</b>\n"
         text += "• Среда 18:00 - уведомление о дежурстве в субботу\n"
         text += "• Пятница 18:00 - напоминание о завтрашнем дежурстве\n"
-        text += "• Суббота 13:00 - напоминание в день дежурства\n"
+        text += "• Суббота 10:00 - напоминание в день дежурства\n"  # ИЗМЕНЕНО
 
         keyboard = [
             [InlineKeyboardButton("🔙 Назад в админку", callback_data="admin_panel")],
@@ -1624,7 +1942,7 @@ class DutyBot:
         )
 
     async def admin_pin_protocol(self, query, context=None):
-        """Прикрепить протокол в закрепленное сообщение"""
+        """Прикрепить протокол в закрепленное сообщение - ИСПРАВЛЕНО (удалена проблемная кнопка)"""
         if not os.path.exists(self.protocol_file_path):
             text = (
                 "❌ <b>ФАЙЛ НЕ НАЙДЕН</b>\n\n"
@@ -1649,11 +1967,10 @@ class DutyBot:
             "Для прикрепления протокола в закрепленное сообщение:\n\n"
             "1. Отправьте боту файл протокола\n"
             "2. В подписи к файлу напишите <code>закрепить</code>\n\n"
-            "Или используйте кнопку ниже для отправки файла:"
+            "Файл будет автоматически закреплен в чате."
         )
 
         keyboard = [
-            [InlineKeyboardButton("📤 Отправить файл", callback_data="admin_send_protocol")],
             [InlineKeyboardButton("🔙 Назад", callback_data="admin_files")]
         ]
 
@@ -2011,7 +2328,7 @@ class DutyBot:
             f"<b>Расписание уведомлений (ВСЕМ):</b>\n"
             f"• Среда 18:00 - о дежурстве в субботу\n"
             f"• Пятница 18:00 - о завтрашнем дежурстве\n"
-            f"• Суббота 13:00 - в день дежурства"
+            f"• Суббота 10:00 - в день дежурства"  # ИЗМЕНЕНО
         )
 
         try:
@@ -2043,12 +2360,21 @@ class DutyBot:
         self.application.add_handler(CommandHandler("test_saturday", self.send_test_saturday))
         self.application.add_handler(CommandHandler("test_user", self.test_notification_for_user))
         self.application.add_handler(CommandHandler("send_now", self.send_notification_now))
+        
+        # НОВЫЕ ДИАГНОСТИЧЕСКИЕ КОМАНДЫ (только для @Tamerlantcik)
+        self.application.add_handler(CommandHandler("users", self.check_users_status))
+        self.application.add_handler(CommandHandler("enable_all", self.enable_notifications_all))
+        self.application.add_handler(CommandHandler("test_send", self.test_send_to_user))
+        self.application.add_handler(CommandHandler("time", self.check_time))
+        self.application.add_handler(CommandHandler("fix", self.fix_all_users))
+        
         self.application.add_handler(CallbackQueryHandler(self.button_handler))
         self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.message_handler))
         self.application.add_handler(MessageHandler(filters.Document.ALL, self.message_handler))
 
         logger.info("Бот запущен...")
-        logger.info("Режим уведомлений: среда 18:00 (всем), пятница 18:00 (всем), суббота 13:00 (всем)")
+        logger.info("Режим уведомлений: среда 18:00 (всем), пятница 18:00 (всем), суббота 10:00 (всем)")  # ИЗМЕНЕНО
+        logger.info(f"Диагностические команды доступны только для {SUPER_ADMIN_USERNAME}")
 
         # Запускаем планировщик
         loop = asyncio.get_event_loop()
