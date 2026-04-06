@@ -45,102 +45,9 @@ TELEGRAM_TO_EMPLOYEE = {
     "@chumakov": "Чумаков И.И.",
     "@karimov": "Каримов Т.Р.",
     "@korotkikh": "Коротких А.А.",
+    "@kudryavtsev": "Кудрявцев А.А.",
+    "@korobova": "Коробова И.А.",
 }
-
-# Начальный график дежурств
-DUTY_SCHEDULE = [
-    {
-        "date": "17.01.2026г.",
-        "date_obj": datetime(2026, 1, 17),
-        "employees": ["Денисова Е.С.", "Осипов Р.Э"],
-        "phones": ["8-987-294-93-24", "8-919-684-48-07"],
-        "is_pair": True
-    },
-    {
-        "date": "24.01.2026г.",
-        "date_obj": datetime(2026, 1, 24),
-        "employees": ["Лиходько А.С.", "Бадершаехова Э.Р"],
-        "phones": ["8-987-284-16-98", "8-927-490-95-52"],
-        "is_pair": True
-    },
-    {
-        "date": "31.01.2026г.",
-        "date_obj": datetime(2026, 1, 31),
-        "employees": ["Портнова М.С.", "Коротких А.А."],
-        "phones": ["8-951-891-52-12", "8-999-155-96-34"],
-        "is_pair": True
-    },
-    {
-        "date": "07.02.2026г.",
-        "date_obj": datetime(2026, 2, 7),
-        "employees": ["Лызина С.В."],
-        "phones": ["8-919-635-55-06"],
-        "is_pair": False
-    },
-    {
-        "date": "14.02.2026г.",
-        "date_obj": datetime(2026, 2, 14),
-        "employees": ["Горбунов Р.Д."],
-        "phones": ["8-963-124-85-46"],
-        "is_pair": False
-    },
-    {
-        "date": "21.02.2026г.",
-        "date_obj": datetime(2026, 2, 21),
-        "employees": ["Аванесян А.А."],
-        "phones": ["8-965-622-17-98"],
-        "is_pair": False
-    },
-    {
-        "date": "28.02.2026г.",
-        "date_obj": datetime(2026, 2, 28),
-        "employees": ["Чумаков И.И."],
-        "phones": ["8-928-098-24-34"],
-        "is_pair": False
-    },
-    {
-        "date": "07.03.2026г.",
-        "date_obj": datetime(2026, 3, 7),
-        "employees": ["Каримов Т.Р."],
-        "phones": ["8-912-453-34-13"],
-        "is_pair": False
-    },
-    {
-        "date": "14.03.2026г.",
-        "date_obj": datetime(2026, 3, 14),
-        "employees": ["Осипов Р.Э"],
-        "phones": ["8-919-684-48-07"],
-        "is_pair": False
-    },
-    {
-        "date": "21.03.2026г.",
-        "date_obj": datetime(2026, 3, 21),
-        "employees": ["Бадершаехова Э.Р"],
-        "phones": ["8-927-490-95-52"],
-        "is_pair": False
-    },
-    {
-        "date": "28.03.2026г.",
-        "date_obj": datetime(2026, 3, 28),
-        "employees": ["Коротких А.А."],
-        "phones": ["8-999-155-96-34"],
-        "is_pair": False
-    },
-    {
-        "date": "04.04.2026г.",
-        "date_obj": datetime(2026, 4, 4),
-        "employees": ["Денисова Е.С."],
-        "phones": ["8-987-294-93-24"],
-        "is_pair": False
-    },
-    {
-        "date": "11.04.2026г.",
-        "date_obj": datetime(2026, 4, 11),
-        "employees": ["Лиходько А.С."],
-        "phones": ["8-987-284-16-98"],
-        "is_pair": False
-    },
-]
 
 # Телефоны сотрудников
 EMPLOYEE_PHONES = {
@@ -155,7 +62,90 @@ EMPLOYEE_PHONES = {
     "Аванесян А.А.": "8-965-622-17-98",
     "Чумаков И.И.": "8-928-098-24-34",
     "Каримов Т.Р.": "8-912-453-34-13",
+    "Кудрявцев А.А.": "8-000-000-00-00",
+    "Коробова И.А.": "8-000-000-00-00",
 }
+
+# Обновленный график дежурств по фото
+DUTY_SCHEDULE = [
+    {
+        "date": "18.04.2026г.",
+        "date_obj": datetime(2026, 4, 18),
+        "employees": ["Портнова М.С."],
+        "phones": ["8-951-891-52-12"],
+        "is_pair": False
+    },
+    {
+        "date": "25.04.2026г.",
+        "date_obj": datetime(2026, 4, 25),
+        "employees": ["Лызина С.В."],
+        "phones": ["8-919-635-55-06"],
+        "is_pair": False
+    },
+    {
+        "date": "02.05.2026г.",
+        "date_obj": datetime(2026, 5, 2),
+        "employees": ["Горбунов Р.Д."],
+        "phones": ["8-963-124-85-46"],
+        "is_pair": False
+    },
+    {
+        "date": "09.05.2026г.",
+        "date_obj": datetime(2026, 5, 9),
+        "employees": ["Аванесян А.А."],
+        "phones": ["8-965-622-17-98"],
+        "is_pair": False
+    },
+    {
+        "date": "16.05.2026г.",
+        "date_obj": datetime(2026, 5, 16),
+        "employees": ["Чумаков И.И."],
+        "phones": ["8-928-098-24-34"],
+        "is_pair": False
+    },
+    {
+        "date": "23.05.2026г.",
+        "date_obj": datetime(2026, 5, 23),
+        "employees": ["Каримов Т.Р."],
+        "phones": ["8-912-453-34-13"],
+        "is_pair": False
+    },
+    {
+        "date": "30.05.2026г.",
+        "date_obj": datetime(2026, 5, 30),
+        "employees": ["Осипов Р.Э"],
+        "phones": ["8-919-684-48-07"],
+        "is_pair": False
+    },
+    {
+        "date": "06.06.2026г.",
+        "date_obj": datetime(2026, 6, 6),
+        "employees": ["Бадершаехова Э.Р"],
+        "phones": ["8-927-490-95-52"],
+        "is_pair": False
+    },
+    {
+        "date": "13.06.2026г.",
+        "date_obj": datetime(2026, 6, 13),
+        "employees": ["Коротких А.А."],
+        "phones": ["8-999-155-96-34"],
+        "is_pair": False
+    },
+    {
+        "date": "20.06.2026г.",
+        "date_obj": datetime(2026, 6, 20),
+        "employees": ["Денисова Е.С."],
+        "phones": ["8-987-294-93-24"],
+        "is_pair": False
+    },
+    {
+        "date": "27.06.2026г.",
+        "date_obj": datetime(2026, 6, 27),
+        "employees": ["Лиходько А.С."],
+        "phones": ["8-987-284-16-98"],
+        "is_pair": False
+    },
+]
 
 
 class DutyScheduleGenerator:
