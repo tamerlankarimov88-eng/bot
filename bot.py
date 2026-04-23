@@ -85,15 +85,15 @@ DUTY_SCHEDULE = [
     {
         "date": "25.04.2026г.",
         "date_obj": datetime(2026, 4, 25),
-        "employees": ["Портнова М.С."],
-        "phones": ["8-919-635-55-06"],
+        "employees": ["Лызина С.В."],
+        "phones": ["8-963-124-85-46"],
         "is_pair": False
     },
     {
         "date": "02.05.2026г.",
         "date_obj": datetime(2026, 5, 2),
-        "employees": ["Лызина С.В."],
-        "phones": ["8-963-124-85-46"],
+        "employees": [""Портнова М.С."],
+        "phones": ["8-919-635-55-06"],
         "is_pair": False
     },
     {
