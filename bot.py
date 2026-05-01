@@ -1929,6 +1929,6 @@ class DutyBot:
 
 
 if __name__ == "__main__":
-    BOT_TOKEN = "8485938284:AAEXAKQepIlgZhwayD6gtXOpwWF4Cx6ANjU"
+    BOT_TOKEN = "8485938284:AAEpyohCu82mHE0jm0rcbQk31T1s2uxw8UA"
     bot = DutyBot(BOT_TOKEN)
     bot.run()
