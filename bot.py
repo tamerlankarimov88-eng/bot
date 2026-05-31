@@ -49,107 +49,45 @@ TELEGRAM_TO_EMPLOYEE = {
     "@korobova": "Коробова И.А.",
 }
 
-# Телефоны сотрудников
+# Телефоны сотрудников (Актуализированы по вашему новому фото)
 EMPLOYEE_PHONES = {
-    "Денисова Е.С.": "8-987-294-93-24",
     "Осипов Р.Э": "8-919-684-48-07",
-    "Лиходько А.С.": "8-987-284-16-98",
     "Бадершаехова Э.Р": "8-927-490-95-52",
-    "Портнова М.С.": "8-951-891-52-12",
     "Коротких А.А.": "8-999-155-96-34",
-    "Лызина С.В.": "8-919-635-55-06",
-    "Горбунов Р.Д.": "8-963-124-85-46",
-    "Аванесян А.А.": "8-965-622-17-98",
-    "Чумаков И.И.": "8-928-098-24-34",
-    "Каримов Т.Р.": "8-912-453-34-13",
+    "Денисова Е.С.": "8-917-858-22-50",
+    "Лиходько А.С.": "8-987-294-93-24",
     "Кудрявцев А.А.": "8-987-284-16-98",
     "Коробова И.А.": "8-917-858-22-50",
+    "Лызина С.В.": "8-919-635-55-06",
+    "Портнова М.С.": "8-951-891-52-12",
+    "Горбунов Р.Д.": "8-963-124-85-46",
+    "Аванесян А.А.": "8-965-622-17-98",
+    "Каримов Т.Р.": "8 (12)-453-34-13",
+    "Чумаков И.И.": "8-928-098-24-34",
 }
 
-# Обновленный график дежурств по фото
-DUTY_SCHEDULE = [
-    {
-        "date": "11.04.2026г.",
-        "date_obj": datetime(2026, 4, 11),
-        "employees": ["Лиходько А.С."],
-        "phones": ["8-987-284-16-98"],
-        "is_pair": False
-    },
-    {
-        "date": "18.04.2026г.",
-        "date_obj": datetime(2026, 4, 18),
-        "employees": ["Кудрявцев А.А.", "Коробова И.А."],
-        "phones": ["8-987-284-16-98", "8-917-858-22-50"],
-        "is_pair": True
-    },
-    {
-        "date": "25.04.2026г.",
-        "date_obj": datetime(2026, 4, 25),
-        "employees": ["Лызина С.В."],
-        "phones": ["8-919-635-55-06"],
-        "is_pair": False
-    },
-    {
-        "date": "02.05.2026г.",
-        "date_obj": datetime(2026, 5, 2),
-        "employees": ["Портнова М.С."],
-        "phones": ["8-951-891-52-12"],
-        "is_pair": False
-    },
-    {
-        "date": "09.05.2026г.",
-        "date_obj": datetime(2026, 5, 9),
-        "employees": ["Горбунов Р.Д."],
-        "phones": ["8-963-124-85-46"],
-        "is_pair": False
-    },
-    {
-        "date": "16.05.2026г.",
-        "date_obj": datetime(2026, 5, 16),
-        "employees": ["Аванесян А.А."],
-        "phones": ["8-965-622-17-98"],
-        "is_pair": False
-    },
-    {
-        "date": "23.05.2026г.",
-        "date_obj": datetime(2026, 5, 23),
-        "employees": ["Чумаков И.И."],
-        "phones": ["8-928-098-24-34"],
-        "is_pair": False
-    },
-    {
-        "date": "30.05.2026г.",
-        "date_obj": datetime(2026, 5, 30),
-        "employees": ["Каримов Т.Р."],
-        "phones": ["8-912-453-34-13"],
-        "is_pair": False
-    },
-    {
-        "date": "06.06.2026г.",
-        "date_obj": datetime(2026, 6, 6),
-        "employees": ["Осипов Р.Э"],
-        "phones": ["8-919-684-48-07"],
-        "is_pair": False
-    },
-    {
-        "date": "13.06.2026г.",
-        "date_obj": datetime(2026, 6, 13),
-        "employees": ["Бадершаехова Э.Р"],
-        "phones": ["8-927-490-95-52"],
-        "is_pair": False
-    },
-    {
-        "date": "20.06.2026г.",
-        "date_obj": datetime(2026, 6, 20),
-        "employees": ["Лиходько А.С. "],
-        "phones": ["8-987-294-93-24"],
-        "is_pair": False
-    },
+# Строгая последовательность дежурств по кругу (из таблицы на фото)
+DUTY_ROTATION_CIRCLE = [
+    "Осипов Р.Э",
+    "Бадершаехова Э.Р",
+    "Коротких А.А.",
+    "Денисова Е.С.",
+    "Лиходько А.С.",
+    "Кудрявцев А.А.",
+    "Коробова И.А.",
+    "Лызина С.В.",
+    "Портнова М.С.",
+    "Горбунов Р.Д.",
+    "Аванесян А.А.",
+    "Каримов Т.Р."
 ]
+
+# Исходный базовый список для обратной совместимости и хранения ручных правок админов
+DUTY_SCHEDULE = []
 
 
 class DutyScheduleGenerator:
-    """Генератор графика дежурств"""
+    """Генератор графика дежурств с поддержкой автоматического круга и ручных правок админа"""
 
     def __init__(self, schedule_data: List[Dict]):
         self.schedule_data = schedule_data
@@ -157,7 +95,7 @@ class DutyScheduleGenerator:
         self.initialize_schedule()
 
     def initialize_schedule(self):
-        """Инициализация графика из данных"""
+        """Инициализация первоначального графика"""
         for duty in self.schedule_data:
             self.schedule[duty["date"]] = {
                 "employees": duty["employees"],
@@ -166,11 +104,10 @@ class DutyScheduleGenerator:
                 "date_obj": duty["date_obj"]
             }
         logger.info(f"Загружен график на {len(self.schedule)} недель")
-        # Удаляем прошедшие дежурства при инициализации
         self.remove_past_duties()
 
     def remove_past_duties(self):
-        """Удаление прошедших дежурств"""
+        """Удаление прошедших ручных дежурств"""
         today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
         dates_to_remove = []
 
@@ -183,32 +120,80 @@ class DutyScheduleGenerator:
             self.schedule_data = [d for d in self.schedule_data if d["date"] != date_str]
 
         if dates_to_remove:
-            logger.info(f"Удалено {len(dates_to_remove)} прошедших дежурств")
+            logger.info(f"Удалено {len(dates_to_remove)} прошедших ручных дежурств")
+
+    def _get_upcoming_saturdays(self, count: int = 12) -> List[datetime]:
+        """Генерирует список будущих суббот"""
+        saturdays = []
+        today = datetime.now(MOSCOW_TZ).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
+        
+        days_ahead = 5 - today.weekday()
+        if days_ahead < 0:
+            days_ahead += 7
+            
+        current_saturday = today + timedelta(days=days_ahead)
+        
+        for _ in range(count):
+            saturdays.append(current_saturday)
+            current_saturday += timedelta(days=7)
+            
+        return saturdays
+
+    def _generate_dynamic_schedule(self) -> Dict[str, Dict]:
+        """Строит полный график, накладывая ручные правки админов на автоматический круг"""
+        # Базовая точка отсчета: 30.05.2026 — это Осипов Р.Э (индекс 0 в кругу)
+        base_date = datetime(2026, 5, 30)
+        base_index = 0
+        
+        now_moscow = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
+        all_saturdays = self._get_upcoming_saturdays(count=13)
+        
+        # Если сегодня суббота и время >= 8:00 утра, текущая суббота считается завершенной
+        if now_moscow.weekday() == 5 and now_moscow.hour >= 8:
+            active_saturdays = all_saturdays[1:]
+        else:
+            active_saturdays = all_saturdays[:12]
+            
+        dynamic_schedule = {}
+        
+        for sat in active_saturdays:
+            date_str = sat.strftime("%d.%m.%Yг.")
+            
+            # Если админ добавил ручную запись на эту дату — используем её приоритетно
+            if date_str in self.schedule:
+                dynamic_schedule[date_str] = self.schedule[date_str]
+            else:
+                # Иначе рассчитываем автоматически по кругу из фото
+                weeks_diff = int((sat - base_date).days / 7)
+                employee_index = (base_index + weeks_diff) % len(DUTY_ROTATION_CIRCLE)
+                employee_name = DUTY_ROTATION_CIRCLE[employee_index]
+                phone = EMPLOYEE_PHONES.get(employee_name, "не указан")
+                
+                dynamic_schedule[date_str] = {
+                    "employees": [employee_name],
+                    "phones": [phone],
+                    "is_pair": False,
+                    "date_obj": sat
+                }
+                
+        return dynamic_schedule
 
     def get_schedule_text(self) -> str:
         """Форматирование графика в текстовый вид"""
-        today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
         text = "📅 <b>АКТУАЛЬНЫЙ ГРАФИК ДЕЖУРСТВ</b>\n\n"
-
-        # Собираем все дежурства
-        duties_list = []
-        for date_str, duty in self.schedule.items():
-            duties_list.append((date_str, duty))
-
+        
+        # Получаем объединенный динамический график
+        current_schedule = self._generate_dynamic_schedule()
+        
         # Сортируем по дате
-        duties_list.sort(key=lambda x: x[1]["date_obj"])
+        duties_list = sorted(current_schedule.items(), key=lambda x: x[1]["date_obj"])
 
-        # Формируем текст только для будущих дежурств
-        future_duties = [d for d in duties_list if d[1]["date_obj"] >= today]
-
-        if not future_duties:
+        if not duties_list:
             text += "Нет запланированных дежурств\n"
         else:
-            for date_str, duty in future_duties:
-                days_left = (duty["date_obj"] - today).days
-
-                if days_left <= 7:
-                    text += f"<b>{date_str}</b>\n"
+            for i, (date_str, duty) in enumerate(duties_list):
+                if i == 0:
+                    text += f"<b>{date_str} (Ближайшее)</b>\n"
                 else:
                     text += f"{date_str}\n"
 
@@ -225,10 +210,10 @@ class DutyScheduleGenerator:
     def get_employee_schedule(self, employee_name: str) -> List[Dict]:
         """Получить все дежурства конкретного сотрудника"""
         result = []
-        today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
-
-        for date_str, duty in self.schedule.items():
-            if employee_name in duty["employees"] and duty["date_obj"] >= today:
+        current_schedule = self._generate_dynamic_schedule()
+        
+        for date_str, duty in current_schedule.items():
+            if employee_name in duty["employees"]:
                 result.append({
                     "date": date_str,
                     "employees": duty["employees"],
@@ -240,41 +225,46 @@ class DutyScheduleGenerator:
 
     def get_next_duty(self, employee_name: str) -> Optional[Dict]:
         """Получить следующее дежурство сотрудника"""
-        today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
+        duties = self.get_employee_schedule(employee_name)
+        return duties[0] if duties else None
 
-        for date_str, duty in sorted(self.schedule.items(), key=lambda x: x[1]["date_obj"]):
-            if employee_name in duty["employees"] and duty["date_obj"] > today:
+    def get_todays_duty(self) -> Optional[Dict]:
+        """Получить дежурных на сегодня"""
+        now_moscow = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
+        today_str = now_moscow.strftime("%d.%m.%Yг.")
+        
+        # Проверяем ручные записи
+        if today_str in self.schedule:
+            return self.schedule[today_str]
+            
+        # Проверяем автоматический круг
+        base_date = datetime(2026, 5, 30)
+        all_saturdays = self._get_upcoming_saturdays(count=5)
+        for sat in all_saturdays:
+            if sat.strftime("%d.%m.%Yг.") == today_str:
+                weeks_diff = int((sat - base_date).days / 7)
+                employee_index = weeks_diff % len(DUTY_ROTATION_CIRCLE)
+                employee_name = DUTY_ROTATION_CIRCLE[employee_index]
                 return {
-                    "date": date_str,
-                    "employees": duty["employees"],
-                    "phones": duty["phones"],
-                    "is_pair": duty["is_pair"],
-                    "date_obj": duty["date_obj"]
+                    "employees": [employee_name],
+                    "phones": [EMPLOYEE_PHONES.get(employee_name)],
+                    "is_pair": False,
+                    "date_obj": sat
                 }
         return None
 
-    def get_todays_duty(self) -> Optional[Dict]:
-        """Получить дежурных на сегодня (если сегодня суббота)"""
-        today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
-        today_str = today.strftime("%d.%m.%Yг.")
-
-        for date_str, duty in self.schedule.items():
-            if date_str == today_str:
-                return duty
-
-        return None
-
     def add_duty(self, date_str: str, employees: List[str], phones: List[str], is_pair: bool):
-        """Добавить дежурство"""
+        """Добавить ручное дежурство (перезаписывает круг на эту дату)"""
         try:
             date_str_clean = date_str.replace("г.", "").strip()
             date_obj = datetime.strptime(date_str_clean, "%d.%m.%Y")
-
             today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
 
-            # Проверяем, чтобы дата была в будущем
-            if date_obj < today:
-                return False, "Дата должна быть в будущем"
+            if date_obj < today and date_str != today.strftime("%d.%m.%Yг."):
+                return False, "Дата должна быть в будущем или текущей"
+
+            if not date_str.endswith("г."):
+                date_str += "г."
 
             self.schedule[date_str] = {
                 "employees": employees,
@@ -291,23 +281,24 @@ class DutyScheduleGenerator:
                 "is_pair": is_pair
             })
 
-            logger.info(f"Добавлено дежурство: {date_str} - {employees}")
+            logger.info(f"Добавлено ручное дежурство: {date_str} - {employees}")
             return True, "Дежурство успешно добавлено"
         except Exception as e:
             logger.error(f"Ошибка добавления дежурства: {e}")
             return False, f"Ошибка: {str(e)}"
 
     def remove_duty(self, date_str: str) -> bool:
-        """Удалить дежурство"""
+        """Удалить ручное дежурство (вернуть на эту дату автоматический круг)"""
+        if not date_str.endswith("г."):
+            date_str += "г."
         if date_str in self.schedule:
             del self.schedule[date_str]
             self.schedule_data = [d for d in self.schedule_data if d["date"] != date_str]
-            logger.info(f"Удалено дежурство: {date_str}")
+            logger.info(f"Удалено ручное дежурство: {date_str}")
             return True
         return False
 
     def update_employee_phone(self, employee_name: str, new_phone: str) -> bool:
-        """Обновить телефон сотрудника"""
         global EMPLOYEE_PHONES
         if employee_name in EMPLOYEE_PHONES:
             EMPLOYEE_PHONES[employee_name] = new_phone
@@ -316,7 +307,6 @@ class DutyScheduleGenerator:
         return False
 
     def add_employee(self, employee_name: str, phone: str) -> bool:
-        """Добавить нового сотрудника"""
         global EMPLOYEE_PHONES
         if employee_name not in EMPLOYEE_PHONES:
             EMPLOYEE_PHONES[employee_name] = phone
@@ -325,7 +315,6 @@ class DutyScheduleGenerator:
         return False
 
     def remove_employee(self, employee_name: str) -> bool:
-        """Удалить сотрудника"""
         global EMPLOYEE_PHONES
         if employee_name in EMPLOYEE_PHONES:
             del EMPLOYEE_PHONES[employee_name]
@@ -349,7 +338,6 @@ class DutyBot:
 
     async def setup_scheduler(self):
         """Настройка автоматических задач - 3 УВЕДОМЛЕНИЯ В НЕДЕЛЮ ВСЕМ ПОЛЬЗОВАТЕЛЯМ"""
-        # Создаем асинхронный планировщик
         self.scheduler = AsyncIOScheduler(timezone=MOSCOW_TZ)
 
         # 1. Уведомление в СРЕДУ в 18:00 - ВСЕМ пользователям о дежурстве в эту субботу
@@ -368,7 +356,7 @@ class DutyBot:
             replace_existing=True
         )
 
-        # 3. Уведомление в СУББОТУ в 10:00 - ВСЕМ пользователям в день дежурства (ИЗМЕНЕНО С 13 НА 10)
+        # 3. Уведомление в СУББОТУ в 10:00 - ВСЕМ пользователям в день дежурства
         self.scheduler.add_job(
             self.send_saturday_notification_all,
             CronTrigger(day_of_week='sat', hour=10, minute=0, second=0, timezone=MOSCOW_TZ),
@@ -384,27 +372,19 @@ class DutyBot:
         try:
             today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
 
-            # Проверяем, сегодня действительно среда?
             if today.weekday() != 2:  # 2 = среда
                 logger.warning(f"send_wednesday_notification вызван не в среду! День недели: {today.weekday()}")
                 return
 
             logger.info(f"Запуск send_wednesday_notification в среду {today.strftime('%d.%m.%Y %H:%M')}")
-
-            # Находим ближайшую субботу (через 3 дня от среды)
             saturday = today + timedelta(days=3)
 
-            # Ищем дежурных на эту субботу
-            duty_saturday = None
-            for date_str, duty in self.schedule_generator.schedule.items():
-                if duty["date_obj"].date() == saturday.date():
-                    duty_saturday = duty
-                    break
+            # Ищем дежурных на эту субботу в динамическом расписании
+            current_schedule = self.schedule_generator._generate_dynamic_schedule()
+            duty_saturday = next((d for d in current_schedule.values() if d["date_obj"].date() == saturday.date()), None)
 
-            # Формируем сообщение
             if not duty_saturday:
                 logger.info(f"На {saturday.strftime('%d.%m.%Y')} дежурных нет")
-
                 message = (
                     f"🔔 <b>НАПОМИНАНИЕ О ДЕЖУРСТВЕ В СУББОТУ</b>\n\n"
                     f"📅 <b>{saturday.strftime('%d.%m.%Y')}</b>\n\n"
@@ -413,7 +393,6 @@ class DutyBot:
                     f"<i>Следующее напоминание: пятница в 18:00</i>"
                 )
             else:
-                # Формируем сообщение о дежурстве
                 if duty_saturday["is_pair"]:
                     duty_text = f"{duty_saturday['employees'][0]} + {duty_saturday['employees'][1]}"
                     phones_text = f"{duty_saturday['phones'][0]} + {duty_saturday['phones'][1]}"
@@ -437,9 +416,7 @@ class DutyBot:
                     f"<i>Следующее напоминание: пятница в 18:00</i>"
                 )
 
-            # Отправляем ВСЕМ зарегистрированным пользователям
             await self._send_notification_to_all_users(message, "среда")
-
         except Exception as e:
             logger.error(f"Ошибка отправки уведомления в среду: {e}")
 
@@ -448,34 +425,25 @@ class DutyBot:
         try:
             today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
 
-            # Проверяем, сегодня действительно пятница?
             if today.weekday() != 4:  # 4 = пятница
                 logger.warning(f"send_friday_notification_all вызван не в пятницу! День недели: {today.weekday()}")
                 return
 
             logger.info(f"Запуск send_friday_notification_all в пятницу {today.strftime('%d.%m.%Y %H:%M')}")
+            tomorrow = today + timedelta(days=1)
 
-            tomorrow = today + timedelta(days=1)  # Завтра - суббота
+            current_schedule = self.schedule_generator._generate_dynamic_schedule()
+            duty_tomorrow = next((d for d in current_schedule.values() if d["date_obj"].date() == tomorrow.date()), None)
 
-            # Ищем дежурных на завтра
-            duty_tomorrow = None
-            for date_str, duty in self.schedule_generator.schedule.items():
-                if duty["date_obj"].date() == tomorrow.date():
-                    duty_tomorrow = duty
-                    break
-
-            # Формируем сообщение
             if not duty_tomorrow:
                 logger.info(f"На {tomorrow.strftime('%d.%m.%Y')} дежурных нет")
-
                 message = (
                     f"🔔 <b>НАПОМИНАНИЕ О ЗАВТРАШНЕМ ДЕЖУРСТВЕ</b>\n\n"
                     f"📅 <b>Завтра ({tomorrow.strftime('%d.%m.%Y')}) дежурных нет</b>\n\n"
                     f"✅ Можете не беспокоиться!\n\n"
-                    f"<i>Следующее напоминание: суббота в 10:00</i>"  # ИЗМЕНЕНО
+                    f"<i>Следующее напоминание: суббота в 10:00</i>"
                 )
             else:
-                # Формируем сообщение о дежурстве
                 if duty_tomorrow["is_pair"]:
                     duty_text = f"{duty_tomorrow['employees'][0]} + {duty_tomorrow['employees'][1]}"
                     phones_text = f"{duty_tomorrow['phones'][0]} + {duty_tomorrow['phones'][1]}"
@@ -501,40 +469,27 @@ class DutyBot:
                     f"• Сфотографировать открытый кабинет\n"
                     f"• Находиться там до 8:00\n"
                     f"• Оформить протокол разногласий\n\n"
-                    f"<i>Следующее напоминание: суббота в 10:00</i>"  # ИЗМЕНЕНО
+                    f"<i>Следующее напоминание: суббота в 10:00</i>"
                 )
 
-            # Отправляем ВСЕМ зарегистрированным пользователям
             await self._send_notification_to_all_users(message, "пятница")
-
         except Exception as e:
             logger.error(f"Ошибка отправки уведомления в пятницу: {e}")
 
     async def send_saturday_notification_all(self):
-        """Отправка уведомления в СУББОТУ в 10:00 ВСЕМ пользователям в день дежурства (ИЗМЕНЕНО С 13 НА 10)"""
+        """Отправка уведомления в СУББОТУ в 10:00 ВСЕМ пользователям в день дежурства"""
         try:
             today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
 
-            # Проверяем, сегодня действительно суббота?
             if today.weekday() != 5:  # 5 = суббота
                 logger.warning(f"send_saturday_notification_all вызван не в субботу! День недели: {today.weekday()}")
                 return
 
             logger.info(f"Запуск send_saturday_notification_all в субботу {today.strftime('%d.%m.%Y %H:%M')}")
+            duty_today = self.schedule_generator.get_todays_duty()
 
-            today_str = today.strftime("%d.%m.%Yг.")
-
-            # Ищем дежурных на сегодня
-            duty_today = None
-            for date_str, duty in self.schedule_generator.schedule.items():
-                if date_str == today_str:
-                    duty_today = duty
-                    break
-
-            # Формируем сообщение
             if not duty_today:
                 logger.info(f"На {today.strftime('%d.%m.%Y')} дежурных нет")
-
                 message = (
                     f"🔔 <b>ИНФОРМАЦИЯ О ДЕЖУРСТВЕ</b>\n\n"
                     f"📅 <b>Сегодня ({today.strftime('%d.%m.%Y')}) дежурных нет</b>\n\n"
@@ -542,7 +497,6 @@ class DutyBot:
                     f"<i>Следующее напоминание: среда в 18:00</i>"
                 )
             else:
-                # Формируем сообщение о дежурстве
                 if duty_today["is_pair"]:
                     duty_text = f"{duty_today['employees'][0]} + {duty_today['employees'][1]}"
                     phones_text = f"{duty_today['phones'][0]} + {duty_today['phones'][1]}"
@@ -550,69 +504,34 @@ class DutyBot:
                     duty_text = f"{duty_today['employees'][0]}"
                     phones_text = f"{duty_today['phones'][0]}"
 
-                # Проверяем, прошло ли уже время дежурства (после 8:00)
-                current_hour = today.hour
-                current_minute = today.minute
-                is_after_duty = current_hour > 8 or (current_hour == 8 and current_minute > 0)
+                message = (
+                    f"🔔 <b>ИТОГИ ДЕЖУРСТВА</b>\n\n"
+                    f"📅 <b>Сегодня ({today.strftime('%d.%m.%Y')}) дежурили:</b>\n"
+                    f"👤 {duty_text}\n"
+                    f"📞 {phones_text}\n\n"
+                    f"✅ <b>Дежурство завершилось в 8:00</b>\n\n"
+                    f"📋 <b>Напоминание дежурным:</b>\n"
+                    f"• Не забудьте оформить протокол разногласий\n"
+                    f"• Протокол оставить у Е.С. Денисовой\n\n"
+                    f"<i>Следующее напоминание: среда в 18:00</i>"
+                )
 
-                if is_after_duty:
-                    # После 8:00 - спрашиваем, как прошло дежурство
-                    message = (
-                        f"🔔 <b>ИТОГИ ДЕЖУРСТВА</b>\n\n"
-                        f"📅 <b>Сегодня ({today.strftime('%d.%m.%Y')}) дежурили:</b>\n"
-                        f"👤 {duty_text}\n"
-                        f"📞 {phones_text}\n\n"
-                        f"✅ <b>Дежурство завершилось в 8:00</b>\n\n"
-                        f"📋 <b>Напоминание дежурным:</b>\n"
-                        f"• Не забудьте оформить протокол разногласий\n"
-                        f"• Протокол оставить у Е.С. Денисовой\n\n"
-                        f"<i>Следующее напоминание: среда в 18:00</i>"
-                    )
-                else:
-                    # До 8:00 - дежурство еще идет
-                    time_remaining = ""
-                    if current_hour < 6 or (current_hour == 6 and current_minute < 50):
-                        time_remaining = "⏰ Дежурство начнется в 6:50"
-                    elif current_hour < 8:
-                        time_remaining = f"⏰ До окончания дежурства осталось: {7 - current_hour} ч {60 - current_minute} мин"
-                    
-                    message = (
-                        f"🔔 <b>ДЕЖУРСТВО СЕГОДНЯ</b>\n\n"
-                        f"📅 <b>Сегодня ({today.strftime('%d.%m.%Y')}) дежурят:</b>\n"
-                        f"👤 {duty_text}\n"
-                        f"📞 {phones_text}\n\n"
-                        f"⏰ <b>Текущее время:</b> {today.strftime('%H:%M')}\n"
-                        f"{time_remaining}\n\n"
-                        f"📍 <b>Место:</b> кабинет 6002, 6 этаж, АДЦ\n\n"
-                        f"📋 <b>Напоминание:</b>\n"
-                        f"• Дежурные должны находиться в кабинете\n"
-                        f"• Сделать фото открытого кабинета\n"
-                        f"• После дежурства оформить протокол\n\n"
-                        f"<i>Следующее напоминание: среда в 18:00</i>"
-                    )
-
-            # Отправляем ВСЕМ зарегистрированным пользователям
             await self._send_notification_to_all_users(message, "суббота")
-
         except Exception as e:
             logger.error(f"Ошибка отправки уведомления в субботу: {e}")
 
     async def _send_notification_to_all_users(self, message: str, notification_type: str):
-        """ИСПРАВЛЕНО: Отправка уведомлений ВСЕМ пользователям с проверкой ID"""
+        """Отправка уведомлений ВСЕМ пользователям с проверкой ID"""
         sent_count = 0
         error_count = 0
         deactivated_users = []
         
-        # Принудительно загружаем свежие данные
         self.load_user_data()
-        
         logger.info(f"Отправка уведомления {notification_type} - всего пользователей: {len(self.user_data)}")
         
         for user_id, user_info in list(self.user_data.items()):
             try:
-                # Проверяем, что user_id можно преобразовать в int
                 chat_id = int(user_id)
-                
                 await self.bot_instance.send_message(
                     chat_id=chat_id,
                     text=message,
@@ -620,21 +539,16 @@ class DutyBot:
                 )
                 sent_count += 1
                 logger.debug(f"✓ Отправлено пользователю {user_id}")
-                
-                # Небольшая задержка чтобы не флудить
                 await asyncio.sleep(0.1)
-                
             except ValueError:
                 logger.error(f"✗ Некорректный ID пользователя: {user_id}")
                 error_count += 1
                 deactivated_users.append(user_id)
-                
             except Exception as e:
                 error_count += 1
                 error_msg = str(e).lower()
                 logger.error(f"✗ Ошибка отправки пользователю {user_id}: {error_msg[:100]}")
                 
-                # Удаляем неактивных пользователей
                 if any(phrase in error_msg for phrase in [
                     'bot was blocked', 'user not found', 'chat not found', 
                     'kicked', 'deactivated', 'forbidden', 'can\'t initiate'
@@ -642,21 +556,18 @@ class DutyBot:
                     logger.warning(f"Удаляю неактивного пользователя: {user_id}")
                     deactivated_users.append(user_id)
         
-        # Удаляем неактивных
         for user_id in deactivated_users:
             self.user_data.pop(user_id, None)
         
         if deactivated_users:
             self.save_user_data()
         
-        # Подробный лог
         logger.info(f"=== ИТОГИ УВЕДОМЛЕНИЯ {notification_type.upper()} ===")
         logger.info(f"Всего в базе: {len(self.user_data) + len(deactivated_users)}")
         logger.info(f"Отправлено успешно: {sent_count}")
         logger.info(f"Ошибок: {error_count}")
         logger.info(f"Удалено неактивных: {len(deactivated_users)}")
         
-        # Если никому не отправилось - это проблема!
         if sent_count == 0 and len(self.user_data) > 0:
             logger.error("⚠️ КРИТИЧЕСКАЯ ПРОБЛЕМА: НЕ УДАЛОСЬ ОТПРАВИТЬ НИ ОДНОГО УВЕДОМЛЕНИЯ!")
 
@@ -739,7 +650,7 @@ class DutyBot:
         return InlineKeyboardMarkup(keyboard)
 
     def get_schedule_admin_keyboard(self) -> InlineKeyboardMarkup:
-        """Клавиатура управления графиком (ВКЛЮЧЕН НОВЫЙ МАСТЕР)"""
+        """Клавиатура управления графиком"""
         keyboard = [
             [
                 InlineKeyboardButton("➕ Добавить дежурство", callback_data="admin_add_duty"),
@@ -789,7 +700,7 @@ class DutyBot:
         return InlineKeyboardMarkup(keyboard)
 
     def get_employee_selection_keyboard(self, prefix: str = "emp_") -> InlineKeyboardMarkup:
-        """Динамическая клавиатура для выбора сотрудника (используется в мастере и профиле)"""
+        """Динамическая клавиатура для выбора сотрудника"""
         keyboard = []
         employees_list = list(EMPLOYEE_PHONES.keys())
 
@@ -802,7 +713,6 @@ class DutyBot:
             if row:
                 keyboard.append(row)
                 
-        # Если это шаг добавления дежурства, добавляем кнопку отмены
         if prefix.startswith("add_e"):
             keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data="admin_schedule")])
 
@@ -820,7 +730,7 @@ class DutyBot:
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "telegram_name": f"{user.first_name} {user.last_name or ''}".strip(),
-                "notifications": True,  # По умолчанию ВКЛЮЧЕНЫ!
+                "notifications": True,
                 "selected_employee": None,
                 "registered_at": datetime.now().isoformat(),
                 "last_active": datetime.now().isoformat(),
@@ -918,7 +828,6 @@ class DutyBot:
             )
 
     # ============= ДИАГНОСТИЧЕСКИЕ КОМАНДЫ ДЛЯ @Tamerlantcik =============
-    
     async def check_users_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Подробная проверка статуса всех пользователей - ТОЛЬКО ДЛЯ @Tamerlantcik"""
         user = update.effective_user
@@ -1077,7 +986,6 @@ class DutyBot:
             f"✅ <b>ИСПРАВЛЕНИЕ ЗАВЕРШЕНО</b>\n\n📊 Исправлено пользователей: {fixed_count}\n📤 Отправлено тестовых уведомлений: {sent_count}\n❌ Ошибок отправки: {error_count}\n\n🔔 Теперь все пользователи будут получать уведомления!",
             parse_mode=ParseMode.HTML
         )
-
     # ============= КОНЕЦ ДИАГНОСТИЧЕСКИХ КОМАНД =============
 
     async def button_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1192,13 +1100,12 @@ class DutyBot:
 
         duties = self.schedule_generator.get_employee_schedule(employee_name)
         today = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
-        future_duties = [d for d in duties if d["date_obj"] >= today]
 
-        if not future_duties:
+        if not duties:
             text = f"📅 <b>БЛИЖАЙШИЕ ДЕЖУРСТВА: {employee_name}</b>\n\nНет запланированных дежурств"
         else:
             text = f"📅 <b>БЛИЖАЙШИЕ ДЕЖУРСТВА: {employee_name}</b>\n\n"
-            for duty in future_duties[:3]:
+            for duty in duties[:3]:
                 days_left = (duty["date_obj"] - today).days
                 if duty["is_pair"]:
                     partners = [e for e in duty["employees"] if e != employee_name]
@@ -1208,7 +1115,7 @@ class DutyBot:
                     duty_text = duty['date']
                     phones = duty['phones'][0]
 
-                text += f"{duty_text}\n📅 Осталось: {days_left} дней\n📞 {phones}\n\n"
+                text += f"{duty_text}\n📅 Осталось: {max(0, days_left)} дней\n📞 {phones}\n\n"
 
         keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data="back_to_main")]]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.HTML)
@@ -1365,8 +1272,8 @@ class DutyBot:
         text = (
             "📅 <b>УПРАВЛЕНИЕ ГРАФИКОМ ДЕЖУРСТВ</b>\n\n"
             "Доступные действия:\n\n"
-            "➕ <b>Добавить дежурство:</b>\nСоздать новую запись в графике\n\n"
-            "➖ <b>Удалить дежурство:</b>\nУдалить существующую запись\n\n"
+            "➕ <b>Добавить дежурство:</b>\nСоздать новую ручную запись в графике поверх круга\n\n"
+            "➖ <b>Удалить дежурство:</b>\nУдалить существующую ручную запись\n\n"
             "📋 <b>Просмотреть график:</b>\nПосмотреть текущий график\n\n"
             "🔄 <b>Обновить график:</b>\nОбновить отображение графика\n\n"
             "<i>Выберите действие:</i>"
@@ -1434,19 +1341,16 @@ class DutyBot:
                 next_saturday = check_date
                 break
 
-        next_duty = None
-        if next_saturday:
-            for date_str, duty in self.schedule_generator.schedule.items():
-                if duty["date_obj"].date() == next_saturday:
-                    next_duty = duty
-                    break
+        current_schedule = self.schedule_generator._generate_dynamic_schedule()
+        next_duty = next((d for d in current_schedule.values() if d["date_obj"].date() == next_saturday), None)
 
         text = (
             "📊 <b>СТАТИСТИКА СИСТЕМЫ</b>\n\n"
             f"👥 <b>Всего пользователей:</b> {total_users}\n"
             f"📱 <b>Активных сегодня:</b> {active_today}\n"
             f"🤖 <b>Автопривязанных:</b> {auto_linked}\n"
-            f"📅 <b>Дежурств в графике:</b> {len(self.schedule_generator.schedule)}\n"
+            f"📅 <b>Дежурств на выводе:</b> {len(current_schedule)}\n"
+            f"👥 <b>Ручных правок в базе:</b> {len(self.schedule_generator.schedule)}\n"
             f"👤 <b>Всего сотрудников:</b> {len(EMPLOYEE_PHONES)}\n\n"
         )
 
@@ -1471,12 +1375,12 @@ class DutyBot:
         """Удалить дежурство (список)"""
         schedule_text = self.schedule_generator.get_schedule_text()
         text = (
-                "➖ <b>УДАЛЕНИЕ ДЕЖУРСТВА</b>\n\n"
-                "<i>Текущий график (только будущие дежурства):</i>\n\n" +
+                "➖ <b>УДАЛЕНИЕ РУЧНОГО ДЕЖУРСТВА</b>\n\n"
+                "<i>Текущий график дежурств:</i>\n\n" +
                 schedule_text[:1500] +
-                "\n\nДля удаления дежурства отправьте дату в формате:\n"
+                "\n\nДля удаления ручной правки и возврата автоматического круга отправьте дату:\n"
                 "<code>дд.мм.ггггг.</code>\n\n"
-                "<b>Пример:</b> <code>07.02.2026г.</code>\n\n"
+                "<b>Пример:</b> <code>06.06.2026г.</code>\n\n"
                 "<i>Отправьте дату или нажмите 'Отмена':</i>"
         )
         keyboard = [[InlineKeyboardButton("❌ Отмена", callback_data="admin_schedule")]]
@@ -1657,7 +1561,7 @@ class DutyBot:
 
         step = context.user_data.get('awaiting_step')
 
-        # --- ЛОГИКА ПОШАГОВОГО МАСТЕРА (НОВОЕ) ---
+        # --- ЛОГИКА ПОШАГОВОГО МАСТЕРА ---
         if step == 'wait_date':
             context.user_data['new_duty']['date'] = message_text if "г." in message_text else message_text + "г."
             await update.message.reply_text(
@@ -1690,11 +1594,11 @@ class DutyBot:
             
             if success:
                 await update.message.reply_text(
-                    f"✅ <b>ДЕЖУРСТВО ДОБАВЛЕНО</b>\n\n"
+                    f"✅ <b>РУЧНОЕ ДЕЖУРСТВО ДОБАВЛЕНО</b>\n\n"
                     f"📅 Дата: {duty_info['date']}\n"
                     f"👥 Сотрудники: {', '.join(duty_info['employees'])}\n"
                     f"📞 Телефоны: {', '.join(phones)}\n\n"
-                    "<i>График успешно обновлен.</i>",
+                    "<i>График успешно обновлен (круг перезаписан на этот день).</i>",
                     reply_markup=self.get_admin_keyboard(),
                     parse_mode=ParseMode.HTML
                 )
@@ -1715,12 +1619,12 @@ class DutyBot:
 
             if success:
                 await update.message.reply_text(
-                    f"✅ <b>ДЕЖУРСТВО УДАЛЕНО</b>\n\n📅 Дата: {date_str}\n\n<i>График успешно обновлен.</i>",
+                    f"✅ <b>РУЧНАЯ ПРАВКА УДАЛЕНА</b>\n\n📅 Дата: {date_str}\n\n<i>На этот день вернулся автоматический расчет по кругу.</i>",
                     parse_mode=ParseMode.HTML
                 )
             else:
                 await update.message.reply_text(
-                    f"❌ <b>ДЕЖУРСТВО НЕ НАЙДЕНО</b>\n\nДата: {date_str}\n\nПроверьте правильность даты.",
+                    f"❌ <b>РУЧНАЯ ПРАВКА НЕ НАЙДЕНА</b>\n\nДата: {date_str}\n\nПроверьте правильность введённой даты.",
                     parse_mode=ParseMode.HTML
                 )
             context.user_data.pop('awaiting_duty_remove', None)
@@ -1795,7 +1699,7 @@ class DutyBot:
                             parse_mode=ParseMode.HTML
                         )
                     else:
-                        await update.message.reply_text(f"❌ <b>СОТРУДНИК НЕ НАЙДЕН</b>\n\nИмя: {employee_name}\n\nПроверьте правильность ФИО.", parse_mode=ParseMode.HTML)
+                        await update.message.reply_text(f"❌ <b>СОТРУДICK НЕ НАЙДЕН</b>\n\nИмя: {employee_name}\n\nПроверьте правильность ФИО.", parse_mode=ParseMode.HTML)
                 else:
                     await update.message.reply_text("❌ <b>НЕВЕРНЫЙ ФОРМАТ</b>\n\nИспользуйте формат:\n<code>ФИО;новый телефон</code>", parse_mode=ParseMode.HTML)
             except Exception as e:
