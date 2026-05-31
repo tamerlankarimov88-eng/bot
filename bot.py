@@ -82,12 +82,12 @@ DUTY_ROTATION_CIRCLE = [
     "Каримов Т.Р."
 ]
 
-# Исходный базовый список для обратной совместимости и хранения ручных правок админов
+# Исходный базовый список для хранения ручных правок админов
 DUTY_SCHEDULE = []
 
 
 class DutyScheduleGenerator:
-    """Генератор графика дежурств с поддержкой автоматического круга и ручных правок админа"""
+    """Генератор графика дежурств с поддержкой полного цикла из 12 недель"""
 
     def __init__(self, schedule_data: List[Dict]):
         self.schedule_data = schedule_data
@@ -123,7 +123,7 @@ class DutyScheduleGenerator:
             logger.info(f"Удалено {len(dates_to_remove)} прошедших ручных дежурств")
 
     def _get_upcoming_saturdays(self, count: int = 12) -> List[datetime]:
-        """Генерирует список будущих суббот"""
+        """Генерирует список суббот вперед, начиная с текущей недели"""
         saturdays = []
         today = datetime.now(MOSCOW_TZ).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
         
@@ -140,7 +140,7 @@ class DutyScheduleGenerator:
         return saturdays
 
     def _generate_dynamic_schedule(self) -> Dict[str, Dict]:
-        """Строит полный график, накладывая ручные правки админов на автоматический круг"""
+        """ИСПРАВЛЕНО: Строит полный цикл из 12 суббот подряд, накладывая ручные правки на автоматический круг"""
         # Базовая точка отсчета: 30.05.2026 — это Осипов Р.Э (индекс 0 в кругу)
         base_date = datetime(2026, 5, 30)
         base_index = 0
@@ -148,22 +148,22 @@ class DutyScheduleGenerator:
         now_moscow = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
         all_saturdays = self._get_upcoming_saturdays(count=13)
         
-        # Если сегодня суббота и время >= 8:00 утра, текущая суббота считается завершенной
+        # Если сегодня суббота и время >= 8:00 утра, текущая суббота завершена — сдвигаем цикл на следующую субботу
         if now_moscow.weekday() == 5 and now_moscow.hour >= 8:
-            active_saturdays = all_saturdays[1:]
+            active_saturdays = all_saturdays[1:13]  # Берем ровно 12 суббот со следующей недели
         else:
-            active_saturdays = all_saturdays[:12]
+            active_saturdays = all_saturdays[:12]   # Берем ровно 12 суббот начиная с текущей недели
             
         dynamic_schedule = {}
         
         for sat in active_saturdays:
             date_str = sat.strftime("%d.%m.%Yг.")
             
-            # Если админ добавил ручную запись на эту дату — используем её приоритетно
+            # Приоритет ручной записи админа
             if date_str in self.schedule:
                 dynamic_schedule[date_str] = self.schedule[date_str]
             else:
-                # Иначе рассчитываем автоматически по кругу из фото
+                # Математический расчет по кругу (всегда выстраивает полный цикл из 12 человек вперед)
                 weeks_diff = int((sat - base_date).days / 7)
                 employee_index = (base_index + weeks_diff) % len(DUTY_ROTATION_CIRCLE)
                 employee_name = DUTY_ROTATION_CIRCLE[employee_index]
@@ -1489,7 +1489,7 @@ class DutyBot:
             [InlineKeyboardButton("🔙 Назад", callback_data="admin_files")],
             [InlineKeyboardButton("📄 Проверить файл", callback_data="admin_check_protocol")]
         ]
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.HTML)
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=ParseMode.HTML)
 
     async def admin_check_protocol(self, query, context=None):
         """Проверить наличие файла протокола"""
@@ -1699,7 +1699,7 @@ class DutyBot:
                             parse_mode=ParseMode.HTML
                         )
                     else:
-                        await update.message.reply_text(f"❌ <b>СОТРУДICK НЕ НАЙДЕН</b>\n\nИмя: {employee_name}\n\nПроверьте правильность ФИО.", parse_mode=ParseMode.HTML)
+                        await update.message.reply_text(f"❌ <b>СОТРУДНИК НЕ НАЙДЕН</b>\n\nИмя: {employee_name}\n\nПроверьте правильность ФИО.", parse_mode=ParseMode.HTML)
                 else:
                     await update.message.reply_text("❌ <b>НЕВЕРНЫЙ ФОРМАТ</b>\n\nИспользуйте формат:\n<code>ФИО;новый телефон</code>", parse_mode=ParseMode.HTML)
             except Exception as e:
@@ -1785,17 +1785,13 @@ class DutyBot:
 
         target_user_id = context.args[0]
         test_message = (
-            f"🔔 <b>ТЕСТОВОЕ УВЕДОМЛЕНИЕ</b>\n\n📅 <b>Это тестовое сообщение от администратора</b>\n\n✅ Получено: {datetime.now(MOSCOW_TZ).strftime('%d.%m.%Y %H:%M')}\n\n"
-            f"<i>Если вы видите это сообщение, значит система уведомлений работает корректно.</i>"
+            f"🔔 <b>ТЕСТОВОЕ УВЕДОМЛЕНИЕ</b>\n\n📅 <b>Это тестовое сообщение от администратора</b>\n\n... "
         )
         try:
             await self.bot_instance.send_message(chat_id=int(target_user_id), text=test_message, parse_mode=ParseMode.HTML)
             await update.message.reply_text(f"✅ Тестовое сообщение отправлено пользователю {target_user_id}")
         except Exception as e:
             await update.message.reply_text(f"❌ Ошибка отправки: {str(e)}")
-
-    async def send_notification_now(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self.send_test_wednesday(update, context)
 
     def run(self):
         """Запуск бота"""
@@ -1808,7 +1804,6 @@ class DutyBot:
         self.application.add_handler(CommandHandler("test_friday", self.send_test_friday))
         self.application.add_handler(CommandHandler("test_saturday", self.send_test_saturday))
         self.application.add_handler(CommandHandler("test_user", self.test_notification_for_user))
-        self.application.add_handler(CommandHandler("send_now", self.send_notification_now))
         
         self.application.add_handler(CommandHandler("users", self.check_users_status))
         self.application.add_handler(CommandHandler("enable_all", self.enable_notifications_all))
@@ -1821,7 +1816,6 @@ class DutyBot:
         self.application.add_handler(MessageHandler(filters.Document.ALL, self.message_handler))
 
         logger.info("Бот запущен...")
-        logger.info("Режим уведомлений: среда 18:00 (всем), пятница 18:00 (всем), суббота 10:00 (всем)")
         
         loop = asyncio.get_event_loop()
         loop.create_task(self.setup_scheduler())
