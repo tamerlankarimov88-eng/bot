@@ -53,15 +53,15 @@ EMPLOYEE_PHONES = {
     "Осипов Р.Э": "8-919-684-48-07",
     "Бадершаехова Э.Р": "8-927-490-95-52",
     "Коротких А.А.": "8-999-155-96-34",
-    "Денисова Е.С.": "8-917-858-22-50",
-    "Лиходько А.С.": "8-987-294-93-24",
-    "Кудрявцев А.А.": "8-987-284-16-98",
+    "Денисова Е.С.": "8-987-294-93-24",
+    "Лиходько А.С.": "8-987-284-16-98",
+    "Кудрявцев А.А.": "8-937-015-32-73",
     "Коробова И.А.": "8-917-858-22-50",
     "Лызина С.В.": "8-919-635-55-06",
     "Портнова М.С.": "8-951-891-52-12",
     "Горбунов Р.Д.": "8-963-124-85-46",
     "Аванесян А.А.": "8-965-622-17-98",
-    "Каримов Т.Р.": "8 (12)-453-34-13",
+    "Каримов Т.Р.": "8-912-453-34-13",
 }
 
 # Строгая последовательность дежурств по кругу (из таблицы на фото)
@@ -124,17 +124,17 @@ class DutyScheduleGenerator:
         """Генерирует список суббот вперед, начиная с текущей недели"""
         saturdays = []
         today = datetime.now(MOSCOW_TZ).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
-        
+
         days_ahead = 5 - today.weekday()
         if days_ahead < 0:
             days_ahead += 7
-            
+
         current_saturday = today + timedelta(days=days_ahead)
-        
+
         for _ in range(count):
             saturdays.append(current_saturday)
             current_saturday += timedelta(days=7)
-            
+
         return saturdays
 
     def _generate_dynamic_schedule(self) -> Dict[str, Dict]:
@@ -142,21 +142,21 @@ class DutyScheduleGenerator:
         # Базовая точка отсчета: 30.05.2026 — это Осипов Р.Э (индекс 0 в кругу)
         base_date = datetime(2026, 5, 30)
         base_index = 0
-        
+
         now_moscow = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
         all_saturdays = self._get_upcoming_saturdays(count=13)
-        
+
         # Если сегодня суббота и время >= 8:00 утра, текущая суббота завершена — сдвигаем цикл на следующую субботу
         if now_moscow.weekday() == 5 and now_moscow.hour >= 8:
             active_saturdays = all_saturdays[1:13]  # Берем ровно 12 суббот со следующей недели
         else:
-            active_saturdays = all_saturdays[:12]   # Берем ровно 12 суббот начиная с текущей недели
-            
+            active_saturdays = all_saturdays[:12]  # Берем ровно 12 суббот начиная с текущей недели
+
         dynamic_schedule = {}
-        
+
         for sat in active_saturdays:
             date_str = sat.strftime("%d.%m.%Yг.")
-            
+
             # Приоритет ручной записи админа
             if date_str in self.schedule:
                 dynamic_schedule[date_str] = self.schedule[date_str]
@@ -166,23 +166,23 @@ class DutyScheduleGenerator:
                 employee_index = (base_index + weeks_diff) % len(DUTY_ROTATION_CIRCLE)
                 employee_name = DUTY_ROTATION_CIRCLE[employee_index]
                 phone = EMPLOYEE_PHONES.get(employee_name, "не указан")
-                
+
                 dynamic_schedule[date_str] = {
                     "employees": [employee_name],
                     "phones": [phone],
                     "is_pair": False,
                     "date_obj": sat
                 }
-                
+
         return dynamic_schedule
 
     def get_schedule_text(self) -> str:
         """Форматирование графика в текстовый вид"""
         text = "📅 <b>АКТУАЛЬНЫЙ ГРАФИК ДЕЖУРСТВ</b>\n\n"
-        
+
         # Получаем объединенный динамический график
         current_schedule = self._generate_dynamic_schedule()
-        
+
         # Сортируем по дате
         duties_list = sorted(current_schedule.items(), key=lambda x: x[1]["date_obj"])
 
@@ -209,7 +209,7 @@ class DutyScheduleGenerator:
         """Получить все дежурства конкретного сотрудника"""
         result = []
         current_schedule = self._generate_dynamic_schedule()
-        
+
         for date_str, duty in current_schedule.items():
             if employee_name in duty["employees"]:
                 result.append({
@@ -230,11 +230,11 @@ class DutyScheduleGenerator:
         """Получить дежурных на сегодня"""
         now_moscow = datetime.now(MOSCOW_TZ).replace(tzinfo=None)
         today_str = now_moscow.strftime("%d.%m.%Yг.")
-        
+
         # Проверяем ручные записи
         if today_str in self.schedule:
             return self.schedule[today_str]
-            
+
         # Проверяем автоматический круг
         base_date = datetime(2026, 5, 30)
         all_saturdays = self._get_upcoming_saturdays(count=5)
@@ -379,7 +379,8 @@ class DutyBot:
 
             # Ищем дежурных на эту субботу в динамическом расписании
             current_schedule = self.schedule_generator._generate_dynamic_schedule()
-            duty_saturday = next((d for d in current_schedule.values() if d["date_obj"].date() == saturday.date()), None)
+            duty_saturday = next((d for d in current_schedule.values() if d["date_obj"].date() == saturday.date()),
+                                 None)
 
             if not duty_saturday:
                 logger.info(f"На {saturday.strftime('%d.%m.%Y')} дежурных нет")
@@ -431,7 +432,8 @@ class DutyBot:
             tomorrow = today + timedelta(days=1)
 
             current_schedule = self.schedule_generator._generate_dynamic_schedule()
-            duty_tomorrow = next((d for d in current_schedule.values() if d["date_obj"].date() == tomorrow.date()), None)
+            duty_tomorrow = next((d for d in current_schedule.values() if d["date_obj"].date() == tomorrow.date()),
+                                 None)
 
             if not duty_tomorrow:
                 logger.info(f"На {tomorrow.strftime('%d.%m.%Y')} дежурных нет")
@@ -523,10 +525,10 @@ class DutyBot:
         sent_count = 0
         error_count = 0
         deactivated_users = []
-        
+
         self.load_user_data()
         logger.info(f"Отправка уведомления {notification_type} - всего пользователей: {len(self.user_data)}")
-        
+
         for user_id, user_info in list(self.user_data.items()):
             try:
                 chat_id = int(user_id)
@@ -546,26 +548,26 @@ class DutyBot:
                 error_count += 1
                 error_msg = str(e).lower()
                 logger.error(f"✗ Ошибка отправки пользователю {user_id}: {error_msg[:100]}")
-                
+
                 if any(phrase in error_msg for phrase in [
-                    'bot was blocked', 'user not found', 'chat not found', 
+                    'bot was blocked', 'user not found', 'chat not found',
                     'kicked', 'deactivated', 'forbidden', 'can\'t initiate'
                 ]):
                     logger.warning(f"Удаляю неактивного пользователя: {user_id}")
                     deactivated_users.append(user_id)
-        
+
         for user_id in deactivated_users:
             self.user_data.pop(user_id, None)
-        
+
         if deactivated_users:
             self.save_user_data()
-        
+
         logger.info(f"=== ИТОГИ УВЕДОМЛЕНИЯ {notification_type.upper()} ===")
         logger.info(f"Всего в базе: {len(self.user_data) + len(deactivated_users)}")
         logger.info(f"Отправлено успешно: {sent_count}")
         logger.info(f"Ошибок: {error_count}")
         logger.info(f"Удалено неактивных: {len(deactivated_users)}")
-        
+
         if sent_count == 0 and len(self.user_data) > 0:
             logger.error("⚠️ КРИТИЧЕСКАЯ ПРОБЛЕМА: НЕ УДАЛОСЬ ОТПРАВИТЬ НИ ОДНОГО УВЕДОМЛЕНИЯ!")
 
@@ -592,7 +594,7 @@ class DutyBot:
     def is_admin(self, user_id: str) -> bool:
         """Проверка, является ли пользователь админом"""
         return self.user_data.get(user_id, {}).get("is_admin", False)
-    
+
     def is_super_admin(self, username: str) -> bool:
         """Проверка, является ли пользователь супер-админом (@Tamerlantcik)"""
         if not username:
@@ -707,10 +709,11 @@ class DutyBot:
             if i < len(employees_list):
                 row.append(InlineKeyboardButton(f"{employees_list[i]}", callback_data=f"{prefix}{employees_list[i]}"))
             if i + 1 < len(employees_list):
-                row.append(InlineKeyboardButton(f"{employees_list[i + 1]}", callback_data=f"{prefix}{employees_list[i + 1]}"))
+                row.append(
+                    InlineKeyboardButton(f"{employees_list[i + 1]}", callback_data=f"{prefix}{employees_list[i + 1]}"))
             if row:
                 keyboard.append(row)
-                
+
         if prefix.startswith("add_e"):
             keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data="admin_schedule")])
 
@@ -829,71 +832,74 @@ class DutyBot:
     async def check_users_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Подробная проверка статуса всех пользователей - ТОЛЬКО ДЛЯ @Tamerlantcik"""
         user = update.effective_user
-        
+
         if not self.is_super_admin(user.username):
             await update.message.reply_text(
                 "❌ <b>ДОСТУП ЗАПРЕЩЕН</b>\n\nЭта команда доступна только @Tamerlantcik",
                 parse_mode=ParseMode.HTML
             )
             return
-        
+
         self.load_user_data()
         text = "📊 <b>СТАТУС ПОЛЬЗОВАТЕЛЕЙ</b>\n\n"
         total = len(self.user_data)
         with_employee = 0
         notifications_on = 0
         notifications_off = 0
-        
+
         for uid, info in self.user_data.items():
             name = info.get('telegram_name', 'Неизвестно')
             username = info.get('username', 'Нет username')
             employee = info.get('selected_employee', None)
             notifications = info.get('notifications', True)
-            
+
             if employee and employee != 'None' and employee != '❌ НЕ ВЫБРАН':
                 with_employee += 1
             if notifications:
                 notifications_on += 1
             else:
                 notifications_off += 1
-            
+
             notif_status = "✅ ВКЛ" if notifications else "❌ ВЫКЛ"
             employee_display = employee if employee else "❌ НЕ ВЫБРАН"
-            
+
             text += f"<b>{name}</b>\n📱 @{username}\n🆔 {uid}\n👤 {employee_display}\n🔔 {notif_status}\n📅 Последний вход: {info.get('last_active', 'Неизвестно')[:16]}\n\n"
-        
+
         text += f"<b>ИТОГО:</b> {total} пользователей\n👤 С выбором сотрудника: {with_employee}\n🔔 Уведомления включены: {notifications_on}\n🔕 Уведомления выключены: {notifications_off}"
         await update.message.reply_text(text, parse_mode=ParseMode.HTML)
-    
+
     async def enable_notifications_all(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Включить уведомления для всех пользователей - ТОЛЬКО ДЛЯ @Tamerlantcik"""
         user = update.effective_user
         if not self.is_super_admin(user.username): return
-        
+
         self.load_user_data()
         enabled_count = 0
         for uid, info in self.user_data.items():
             if not info.get('notifications', True):
                 self.user_data[uid]['notifications'] = True
                 enabled_count += 1
-        
+
         self.save_user_data()
-        await update.message.reply_text(f"✅ Уведомления включены для {enabled_count} пользователей\n📊 Всего пользователей: {len(self.user_data)}", parse_mode=ParseMode.HTML)
-    
+        await update.message.reply_text(
+            f"✅ Уведомления включены для {enabled_count} пользователей\n📊 Всего пользователей: {len(self.user_data)}",
+            parse_mode=ParseMode.HTML)
+
     async def test_send_to_user(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Тест отправки конкретному пользователю - ТОЛЬКО ДЛЯ @Tamerlantcik"""
         user = update.effective_user
         if not self.is_super_admin(user.username): return
-        
+
         args = context.args
         if len(args) < 1:
-            await update.message.reply_text("❌ Укажите user_id или username\nПример: /test_send 123456789\nИли: /test_send @username")
+            await update.message.reply_text(
+                "❌ Укажите user_id или username\nПример: /test_send 123456789\nИли: /test_send @username")
             return
-        
+
         target = args[0]
         target_id = None
         target_name = target
-        
+
         if target.startswith('@'):
             username = target[1:].lower()
             for uid, info in self.user_data.items():
@@ -906,48 +912,55 @@ class DutyBot:
                 return
         else:
             target_id = target
-        
+
         test_msg = (
             f"🔔 <b>ТЕСТОВОЕ УВЕДОМЛЕНИЕ</b>\n\n👤 Получатель: {target_name}\n🆔 ID: {target_id}\n📅 Время: {datetime.now(MOSCOW_TZ).strftime('%d.%m.%Y %H:%M:%S')}\n\n"
             f"✅ Если вы видите это сообщение, значит:\n   • Бот может отправлять вам сообщения\n   • Вы не блокировали бота\n   • Уведомления будут приходить по расписанию\n\n"
             f"📅 Расписание уведомлений:\n• Среда 18:00 - о дежурстве в субботу\n• Пятница 18:00 - о завтрашнем дежурстве\n• Суббота 10:00 - в день дежурства"
         )
-        
+
         try:
             await self.bot_instance.send_message(chat_id=int(target_id), text=test_msg, parse_mode=ParseMode.HTML)
             await update.message.reply_text(f"✅ Тестовое сообщение отправлено {target_name}")
         except Exception as e:
             await update.message.reply_text(f"❌ Ошибка отправки: {str(e)[:200]}")
-    
+
     async def check_time(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Проверка времени на сервере - ТОЛЬКО ДЛЯ @Tamerlantcik"""
         user = update.effective_user
         if not self.is_super_admin(user.username): return
-        
+
         now = datetime.now(MOSCOW_TZ)
         weekdays = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
         weekday_ru = weekdays[now.weekday()]
-        
+
         next_notification = ""
-        if now.weekday() == 1 and now.hour < 18: next_notification = "Среда 18:00 (через 1 день)"
-        elif now.weekday() == 2 and now.hour < 18: next_notification = "Среда 18:00 (сегодня)"
-        elif now.weekday() == 3: next_notification = "Пятница 18:00 (через 1 день)"
-        elif now.weekday() == 4 and now.hour < 18: next_notification = "Пятница 18:00 (сегодня)"
-        elif now.weekday() == 5 and now.hour < 10: next_notification = "Суббота 10:00 (сегодня)"
-        elif now.weekday() == 6: next_notification = "Среда 18:00 (через 3 дня)"
-        else: next_notification = "Среда 18:00"
-        
+        if now.weekday() == 1 and now.hour < 18:
+            next_notification = "Среда 18:00 (через 1 день)"
+        elif now.weekday() == 2 and now.hour < 18:
+            next_notification = "Среда 18:00 (сегодня)"
+        elif now.weekday() == 3:
+            next_notification = "Пятница 18:00 (через 1 день)"
+        elif now.weekday() == 4 and now.hour < 18:
+            next_notification = "Пятница 18:00 (сегодня)"
+        elif now.weekday() == 5 and now.hour < 10:
+            next_notification = "Суббота 10:00 (сегодня)"
+        elif now.weekday() == 6:
+            next_notification = "Среда 18:00 (через 3 дня)"
+        else:
+            next_notification = "Среда 18:00"
+
         await update.message.reply_text(
             f"🕐 <b>ИНФОРМАЦИЯ О ВРЕМЕНИ</b>\n\n📅 Дата: {now.strftime('%d.%m.%Y')}\n⏰ Время: {now.strftime('%H:%M:%S')}\n📆 День недели: {weekday_ru}\n🌍 Часовой пояс: Москва (UTC+3)\n\n"
             f"🔄 <b>Следующее уведомление:</b> {next_notification}\n\n📋 <b>Расписание:</b>\n• Среда 18:00 - всем\n• Пятница 18:00 - всем\n• Суббота 10:00 - всем",
             parse_mode=ParseMode.HTML
         )
-    
+
     async def fix_all_users(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """ИСПРАВИТЬ: Включить уведомления и проверить всех пользователей"""
         user = update.effective_user
         if not self.is_super_admin(user.username): return
-        
+
         self.load_user_data()
         fixed_count = 0
         for uid, info in self.user_data.items():
@@ -961,14 +974,14 @@ class DutyBot:
             if changes:
                 fixed_count += 1
                 logger.info(f"Исправлен пользователь {uid}: {', '.join(changes)}")
-        
+
         self.save_user_data()
-        
+
         test_msg = (
             f"🔔 <b>ТЕСТОВОЕ УВЕДОМЛЕНИЕ ОТ АДМИНИСТРАТОРА</b>\n\n✅ Ваши уведомления были включены!\n\n"
             f"📅 Вы будете получать напоминания:\n• В среду в 18:00 - о дежурстве в субботу\n• В пятницу в 18:00 - о завтрашнем дежурстве\n• В субботу в 10:00 - в день дежурства\n\n📋 Используйте /start для просмотра меню"
         )
-        
+
         sent_count = 0
         error_count = 0
         for uid in self.user_data.keys():
@@ -979,11 +992,12 @@ class DutyBot:
             except Exception as e:
                 error_count += 1
                 logger.error(f"Ошибка отправки теста пользователю {uid}: {e}")
-        
+
         await update.message.reply_text(
             f"✅ <b>ИСПРАВЛЕНИЕ ЗАВЕРШЕНО</b>\n\n📊 Исправлено пользователей: {fixed_count}\n📤 Отправлено тестовых уведомлений: {sent_count}\n❌ Ошибок отправки: {error_count}\n\n🔔 Теперь все пользователи будут получать уведомления!",
             parse_mode=ParseMode.HTML
         )
+
     # ============= КОНЕЦ ДИАГНОСТИЧЕСКИХ КОМАНД =============
 
     async def button_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -998,7 +1012,9 @@ class DutyBot:
             if self.is_admin(user_id) and self.admin_sessions.get(user_id, {}).get("logged_in"):
                 await self.show_admin_panel(query)
             else:
-                await query.edit_message_text("❌ <b>ДОСТУП ЗАПРЕЩЕН</b>\n\nДоступ только админам\n<code>Зайдите с нужного аккаунта!!</code>", parse_mode=ParseMode.HTML)
+                await query.edit_message_text(
+                    "❌ <b>ДОСТУП ЗАПРЕЩЕН</b>\n\nДоступ только админам\n<code>Зайдите с нужного аккаунта!!</code>",
+                    parse_mode=ParseMode.HTML)
             return
 
         handlers = {
@@ -1039,23 +1055,30 @@ class DutyBot:
                  InlineKeyboardButton("👥 Пара (2 чел.)", callback_data="add_type_pair")],
                 [InlineKeyboardButton("❌ Отмена", callback_data="admin_schedule")]
             ])
-            await query.edit_message_text("➕ <b>НОВОЕ ДЕЖУРСТВО</b>\n\n<b>Шаг 1:</b> Выберите формат дежурства:", reply_markup=kb, parse_mode=ParseMode.HTML)
+            await query.edit_message_text("➕ <b>НОВОЕ ДЕЖУРСТВО</b>\n\n<b>Шаг 1:</b> Выберите формат дежурства:",
+                                          reply_markup=kb, parse_mode=ParseMode.HTML)
 
         elif data.startswith("add_type_"):
             is_pair = (data == "add_type_pair")
             context.user_data['new_duty'] = {'is_pair': is_pair, 'employees': [], 'phones': []}
             context.user_data['awaiting_step'] = 'wait_date'
-            await query.edit_message_text("📅 <b>Шаг 2:</b> Введите дату в чат\n\nФормат: <code>дд.мм.гггг</code>\n<i>Например: 07.02.2026</i>", parse_mode=ParseMode.HTML)
+            await query.edit_message_text(
+                "📅 <b>Шаг 2:</b> Введите дату в чат\n\nФормат: <code>дд.мм.гггг</code>\n<i>Например: 07.02.2026</i>",
+                parse_mode=ParseMode.HTML)
 
         elif data.startswith("add_e1_"):
             name = data.replace("add_e1_", "")
             context.user_data['new_duty']['employees'].append(name)
-            
+
             if context.user_data['new_duty']['is_pair']:
-                await query.edit_message_text(f"✅ Выбран первый: <b>{name}</b>\n\n👥 <b>Шаг 4:</b> Выберите второго дежурного:", reply_markup=self.get_employee_selection_keyboard("add_e2_"), parse_mode=ParseMode.HTML)
+                await query.edit_message_text(
+                    f"✅ Выбран первый: <b>{name}</b>\n\n👥 <b>Шаг 4:</b> Выберите второго дежурного:",
+                    reply_markup=self.get_employee_selection_keyboard("add_e2_"), parse_mode=ParseMode.HTML)
             else:
                 context.user_data['awaiting_step'] = 'wait_phones'
-                await query.edit_message_text(f"✅ Выбран: <b>{name}</b>\n\n📞 <b>Шаг 4:</b> Введите номер телефона в чат.\n\n<i>Лайфхак: Напишите в чат слово <b>ок</b>, и бот сам подставит сохраненный номер сотрудника!</i>", parse_mode=ParseMode.HTML)
+                await query.edit_message_text(
+                    f"✅ Выбран: <b>{name}</b>\n\n📞 <b>Шаг 4:</b> Введите номер телефона в чат.\n\n<i>Лайфхак: Напишите в чат слово <b>ок</b>, и бот сам подставит сохраненный номер сотрудника!</i>",
+                    parse_mode=ParseMode.HTML)
 
         elif data.startswith("add_e2_"):
             name = data.replace("add_e2_", "")
@@ -1063,10 +1086,10 @@ class DutyBot:
             context.user_data['awaiting_step'] = 'wait_phones'
             await query.edit_message_text(
                 f"✅ Выбрана пара: <b>{context.user_data['new_duty']['employees'][0]} + {name}</b>\n\n"
-                "📞 <b>Шаг 5:</b> Введите телефоны через запятую.\n\n<i>Лайфхак: Напишите в чат слово <b>ок</b>, и бот сам подставит номера обоих сотрудников!</i>", 
+                "📞 <b>Шаг 5:</b> Введите телефоны через запятую.\n\n<i>Лайфхак: Напишите в чат слово <b>ок</b>, и бот сам подставит номера обоих сотрудников!</i>",
                 parse_mode=ParseMode.HTML
             )
-        
+
         # Стандартные обработчики кнопок
         elif data in handlers:
             await handlers[data](query, context)
@@ -1078,7 +1101,8 @@ class DutyBot:
 
         if len(text) > 4000:
             await query.edit_message_text(text[:4000], parse_mode=ParseMode.HTML)
-            await query.message.reply_text(text[4000:], parse_mode=ParseMode.HTML, reply_markup=self.get_back_keyboard())
+            await query.message.reply_text(text[4000:], parse_mode=ParseMode.HTML,
+                                           reply_markup=self.get_back_keyboard())
         else:
             await query.edit_message_text(text, reply_markup=self.get_back_keyboard(), parse_mode=ParseMode.HTML)
 
@@ -1140,7 +1164,8 @@ class DutyBot:
         """Скачать протокол разногласий"""
         try:
             if not os.path.exists(self.protocol_file_path):
-                await query.edit_message_text("❌ Файл не найден", reply_markup=self.get_back_keyboard(), parse_mode=ParseMode.HTML)
+                await query.edit_message_text("❌ Файл не найден", reply_markup=self.get_back_keyboard(),
+                                              parse_mode=ParseMode.HTML)
                 return
 
             with open(self.protocol_file_path, 'rb') as f:
@@ -1151,9 +1176,11 @@ class DutyBot:
                     parse_mode=ParseMode.HTML
                 )
 
-            await query.edit_message_text("✅ Файл отправлен", reply_markup=self.get_back_keyboard(), parse_mode=ParseMode.HTML)
+            await query.edit_message_text("✅ Файл отправлен", reply_markup=self.get_back_keyboard(),
+                                          parse_mode=ParseMode.HTML)
         except Exception as e:
-            await query.edit_message_text(f"❌ Ошибка: {str(e)[:50]}", reply_markup=self.get_back_keyboard(), parse_mode=ParseMode.HTML)
+            await query.edit_message_text(f"❌ Ошибка: {str(e)[:50]}", reply_markup=self.get_back_keyboard(),
+                                          parse_mode=ParseMode.HTML)
 
     async def show_instructions(self, query, context=None):
         """Показать инструкцию по дежурству"""
@@ -1195,7 +1222,8 @@ class DutyBot:
     async def change_profile(self, query, context=None):
         """Изменение привязанного сотрудника"""
         text = "<b>👤 ИЗМЕНЕНИЕ ПРОФИЛЯ</b>\n\nВыберите ваше ФИО из списка сотрудников.\n\n<i>Текущий выбор будет заменен.</i>"
-        await query.edit_message_text(text, reply_markup=self.get_employee_selection_keyboard(prefix="emp_"), parse_mode=ParseMode.HTML)
+        await query.edit_message_text(text, reply_markup=self.get_employee_selection_keyboard(prefix="emp_"),
+                                      parse_mode=ParseMode.HTML)
 
     async def register_employee(self, query, employee_name: str):
         """Регистрация сотрудника для пользователя"""
@@ -1214,7 +1242,8 @@ class DutyBot:
             )
             await query.edit_message_text(text, reply_markup=self.get_main_keyboard(user_id), parse_mode=ParseMode.HTML)
         else:
-            await query.edit_message_text("Ошибка регистрации. Пожалуйста, начните снова командой /start", parse_mode=ParseMode.HTML)
+            await query.edit_message_text("Ошибка регистрации. Пожалуйста, начните снова командой /start",
+                                          parse_mode=ParseMode.HTML)
 
     async def show_admin_panel(self, query, context=None):
         """Показать админ-панель"""
@@ -1572,24 +1601,24 @@ class DutyBot:
 
         elif step == 'wait_phones':
             duty_info = context.user_data['new_duty']
-            
+
             # Автоподстановка, если админ ввел "ок"
             if message_text.lower() in ["ок", "ok", "да", "авто"]:
                 phones = [EMPLOYEE_PHONES.get(emp, "Номер не найден") for emp in duty_info['employees']]
             else:
                 phones = [p.strip() for p in message_text.split(',')]
-            
+
             if len(duty_info['employees']) != len(phones):
                 await update.message.reply_text(
                     "❌ <b>ОШИБКА</b>\n\nКоличество сотрудников и телефонов не совпадает. Введите телефоны заново:",
                     parse_mode=ParseMode.HTML
                 )
                 return
-            
+
             success, msg = self.schedule_generator.add_duty(
                 duty_info['date'], duty_info['employees'], phones, duty_info['is_pair']
             )
-            
+
             if success:
                 await update.message.reply_text(
                     f"✅ <b>РУЧНОЕ ДЕЖУРСТВО ДОБАВЛЕНО</b>\n\n"
@@ -1600,7 +1629,7 @@ class DutyBot:
                     reply_markup=self.get_admin_keyboard(),
                     parse_mode=ParseMode.HTML
                 )
-                context.user_data.clear() # Очищаем временные данные мастера
+                context.user_data.clear()  # Очищаем временные данные мастера
             else:
                 await update.message.reply_text(
                     f"❌ <b>ОШИБКА ДОБАВЛЕНИЯ</b>\n\n{msg}",
@@ -1653,9 +1682,12 @@ class DutyBot:
                             parse_mode=ParseMode.HTML
                         )
                 else:
-                    await update.message.reply_text("❌ <b>НЕВЕРНЫЙ ФОРМАТ</b>\n\nИспользуйте формат:\n<code>ФИО;телефон;telegram_username</code>", parse_mode=ParseMode.HTML)
+                    await update.message.reply_text(
+                        "❌ <b>НЕВЕРНЫЙ ФОРМАТ</b>\n\nИспользуйте формат:\n<code>ФИО;телефон;telegram_username</code>",
+                        parse_mode=ParseMode.HTML)
             except Exception as e:
-                await update.message.reply_text(f"❌ <b>ОШИБКА:</b> {str(e)}\n\nПроверьте правильность данных.", parse_mode=ParseMode.HTML)
+                await update.message.reply_text(f"❌ <b>ОШИБКА:</b> {str(e)}\n\nПроверьте правильность данных.",
+                                                parse_mode=ParseMode.HTML)
             context.user_data.pop('awaiting_employee_add', None)
 
         elif context.user_data.get('awaiting_employee_remove'):
@@ -1697,11 +1729,16 @@ class DutyBot:
                             parse_mode=ParseMode.HTML
                         )
                     else:
-                        await update.message.reply_text(f"❌ <b>СОТРУДНИК НЕ НАЙДЕН</b>\n\nИмя: {employee_name}\n\nПроверьте правильность ФИО.", parse_mode=ParseMode.HTML)
+                        await update.message.reply_text(
+                            f"❌ <b>СОТРУДНИК НЕ НАЙДЕН</b>\n\nИмя: {employee_name}\n\nПроверьте правильность ФИО.",
+                            parse_mode=ParseMode.HTML)
                 else:
-                    await update.message.reply_text("❌ <b>НЕВЕРНЫЙ ФОРМАТ</b>\n\nИспользуйте формат:\n<code>ФИО;новый телефон</code>", parse_mode=ParseMode.HTML)
+                    await update.message.reply_text(
+                        "❌ <b>НЕВЕРНЫЙ ФОРМАТ</b>\n\nИспользуйте формат:\n<code>ФИО;новый телефон</code>",
+                        parse_mode=ParseMode.HTML)
             except Exception as e:
-                await update.message.reply_text(f"❌ <b>ОШИБКА:</b> {str(e)}\n\nПроверьте правильность данных.", parse_mode=ParseMode.HTML)
+                await update.message.reply_text(f"❌ <b>ОШИБКА:</b> {str(e)}\n\nПроверьте правильность данных.",
+                                                parse_mode=ParseMode.HTML)
             context.user_data.pop('awaiting_phone_edit', None)
 
         # Обработка загрузки файлов
@@ -1719,9 +1756,12 @@ class DutyBot:
                             parse_mode=ParseMode.HTML
                         )
                     except Exception as e:
-                        await update.message.reply_text(f"❌ <b>ОШИБКА ЗАГРУЗКИ:</b> {str(e)}", parse_mode=ParseMode.HTML)
+                        await update.message.reply_text(f"❌ <b>ОШИБКА ЗАГРУЗКИ:</b> {str(e)}",
+                                                        parse_mode=ParseMode.HTML)
                 else:
-                    await update.message.reply_text("❌ <b>НЕВЕРНЫЙ ФОРМАТ ФАЙЛА</b>\n\nПоддерживаются только файлы .docx", parse_mode=ParseMode.HTML)
+                    await update.message.reply_text(
+                        "❌ <b>НЕВЕРНЫЙ ФОРМАТ ФАЙЛА</b>\n\nПоддерживаются только файлы .docx",
+                        parse_mode=ParseMode.HTML)
 
             elif caption.lower() in ['закрепить', 'pin', 'прикрепить']:
                 if document.file_name.endswith('.docx'):
@@ -1742,9 +1782,12 @@ class DutyBot:
                             parse_mode=ParseMode.HTML
                         )
                     except Exception as e:
-                        await update.message.reply_text(f"❌ <b>ОШИБКА ПРИКРЕПЛЕНИЯ:</b> {str(e)}", parse_mode=ParseMode.HTML)
+                        await update.message.reply_text(f"❌ <b>ОШИБКА ПРИКРЕПЛЕНИЯ:</b> {str(e)}",
+                                                        parse_mode=ParseMode.HTML)
                 else:
-                    await update.message.reply_text("❌ <b>НЕВЕРНЫЙ ФОРМАТ ФАЙЛА</b>\n\nПоддерживаются только файлы .docx", parse_mode=ParseMode.HTML)
+                    await update.message.reply_text(
+                        "❌ <b>НЕВЕРНЫЙ ФОРМАТ ФАЙЛА</b>\n\nПоддерживаются только файлы .docx",
+                        parse_mode=ParseMode.HTML)
 
         elif message_text and not message_text.startswith('/'):
             await update.message.reply_text(
@@ -1786,7 +1829,8 @@ class DutyBot:
             f"🔔 <b>ТЕСТОВОЕ УВЕДОМЛЕНИЕ</b>\n\n📅 <b>Это тестовое сообщение от администратора</b>\n\n... "
         )
         try:
-            await self.bot_instance.send_message(chat_id=int(target_user_id), text=test_message, parse_mode=ParseMode.HTML)
+            await self.bot_instance.send_message(chat_id=int(target_user_id), text=test_message,
+                                                 parse_mode=ParseMode.HTML)
             await update.message.reply_text(f"✅ Тестовое сообщение отправлено пользователю {target_user_id}")
         except Exception as e:
             await update.message.reply_text(f"❌ Ошибка отправки: {str(e)}")
@@ -1802,19 +1846,19 @@ class DutyBot:
         self.application.add_handler(CommandHandler("test_friday", self.send_test_friday))
         self.application.add_handler(CommandHandler("test_saturday", self.send_test_saturday))
         self.application.add_handler(CommandHandler("test_user", self.test_notification_for_user))
-        
+
         self.application.add_handler(CommandHandler("users", self.check_users_status))
         self.application.add_handler(CommandHandler("enable_all", self.enable_notifications_all))
         self.application.add_handler(CommandHandler("test_send", self.test_send_to_user))
         self.application.add_handler(CommandHandler("time", self.check_time))
         self.application.add_handler(CommandHandler("fix", self.fix_all_users))
-        
+
         self.application.add_handler(CallbackQueryHandler(self.button_handler))
         self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.message_handler))
         self.application.add_handler(MessageHandler(filters.Document.ALL, self.message_handler))
 
         logger.info("Бот запущен...")
-        
+
         loop = asyncio.get_event_loop()
         loop.create_task(self.setup_scheduler())
 
